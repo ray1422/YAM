@@ -8,4 +8,5 @@ import (
 func main() {
 	router := gin.Default()
 	room.RegisterRouter(router.Group("/room"))
+	router.Run()
 }

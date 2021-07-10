@@ -16,8 +16,8 @@ type simpleJSONData struct {
 }
 type Hub struct {
 	Clients        map[string]*Client
-	RegisterChan   chan *Client
-	UnregisterChan chan *Client
+	RegisterChan   chan *Client // must be unbuffered chan to make sure send await register
+	UnregisterChan chan *Client // must be unbuffered chan
 	simpleChan     chan *simpleData
 	simpleJSONChan chan *simpleJSONData
 }
@@ -25,8 +25,8 @@ type Hub struct {
 func CreateHub() *Hub {
 	h := &Hub{
 		Clients:        map[string]*Client{},
-		RegisterChan:   make(chan *Client, 32),
-		UnregisterChan: make(chan *Client, 32),
+		RegisterChan:   make(chan *Client),
+		UnregisterChan: make(chan *Client),
 		simpleChan:     make(chan *simpleData, 8192),
 		simpleJSONChan: make(chan *simpleJSONData, 8192),
 	}

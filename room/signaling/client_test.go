@@ -84,4 +84,5 @@ func TestClientProvideDat(t *testing.T) {
 			assert.Equal(t, client.id, obj.RemoteID)
 		}
 	}
+	client.hub.UnregisterChan <- client
 }

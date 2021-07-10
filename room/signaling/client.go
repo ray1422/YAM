@@ -56,7 +56,9 @@ func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 	return client
 }
 func (c *Client) close() {
-	c.conn.Close()
+	if c.conn != nil {
+		c.conn.Close()
+	}
 	close(c.send)
 	close(c.sendJSON)
 }
