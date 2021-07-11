@@ -104,6 +104,7 @@ func TestWithRealConn(t *testing.T) {
 
 	// readloop for c1
 	go func(t *testing.T, msg string) {
+		c1.WriteMessage(websocket.TextMessage, []byte(`{"action": "register_client", "data": {"token": "w"}}`))
 		defer func() {
 			fmt.Println("c1 done")
 			done <- true
@@ -156,6 +157,7 @@ func TestWithRealConn(t *testing.T) {
 
 	// readloop for c2
 	go func(t *testing.T, msg string) {
+		c2.WriteMessage(websocket.TextMessage, []byte(`{"action": "register_client", "data": {"token": "w"}}`))
 		defer func() {
 			fmt.Println("c2 done")
 			done <- true
@@ -204,9 +206,6 @@ func TestWithRealConn(t *testing.T) {
 
 		}
 	}(t, msg)
-
-	c1.WriteMessage(websocket.TextMessage, []byte(`{"action": "register_client", "data": {"token": "w"}}`))
-	c2.WriteMessage(websocket.TextMessage, []byte(`{"action": "register_client", "data": {"token": "w"}}`))
 
 	<-done
 	<-done
