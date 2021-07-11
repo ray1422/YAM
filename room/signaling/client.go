@@ -42,10 +42,10 @@ func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 		hub:      h,
 		id:       xid.New().String(),
 		conn:     conn,
-		send:     make(chan []byte),
+		send:     make(chan []byte, 256),
 		sendJSON: make(chan interface{}),
 	}
-	h.RegisterChan <- client
+
 	if conn != nil {
 		go client.ReadLoop()
 		go client.WriteLoop()
@@ -82,10 +82,9 @@ func (c *Client) ReadLoop() {
 			continue
 		}
 		switch action {
-		// case "register_client":
-		// 	c.register_client(data)
-		// case "list_client":
-		// 	c.list_client(data)
+		case "register_client":
+			c.registerClient(data)
+
 		case "provide_offer":
 			if dat, err := c.provideData(data, OFFER); err == nil {
 				c.hub.simpleChan <- dat
@@ -149,6 +148,23 @@ func (c *Client) WriteLoop() {
 type ForwardData struct {
 	RemoteID string `json:"remote_id"`
 	Data     string `json:"data"`
+}
+type RegisterData struct {
+	Token string `json:"token"`
+}
+
+func (c *Client) registerClient(data json.RawMessage) error {
+	obj := RegisterData{}
+	err := json.Unmarshal(data, &obj)
+	token := obj.Token
+	_ = token
+	// TODO verify token
+	if err != nil {
+		return err
+	}
+	log.Println(c.hub.RegisterChan)
+	c.hub.RegisterChan <- c // then hub will send list_client action to the client
+	return nil
 }
 
 func (c *Client) provideData(rawData json.RawMessage, provideType FORWARD_DATA_TYPE) (*simpleData, error) {
