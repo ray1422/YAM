@@ -64,8 +64,9 @@ func (c *Client) close() {
 }
 
 func (c *Client) ReadLoop() {
-	// c.conn = nil for some units test
-	c.hub.UnregisterChan <- c
+	defer func() {
+		c.hub.UnregisterChan <- c
+	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })

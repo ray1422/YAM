@@ -67,9 +67,10 @@ func TestMultiClients(t *testing.T) {
 }
 
 func TestWithRealConn(t *testing.T) {
+	roomName := "adsf"
 	done := make(chan bool)
 	router := gin.Default()
-	RoomWS(router.Group("/room"), "/")
+	RoomWS(router.Group("/api/room"), "/")
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: router,
@@ -86,7 +87,7 @@ func TestWithRealConn(t *testing.T) {
 	flag.Parse()
 	log.SetFlags(0)
 
-	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/room/2/ws/"}
+	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/api/room/" + roomName + "/ws/"}
 	log.Printf("connecting to %s", u.String())
 	c1IDChan := make(chan string, 1)
 	c2IDChan := make(chan string, 1)
@@ -209,6 +210,12 @@ func TestWithRealConn(t *testing.T) {
 
 	<-done
 	<-done
+	// TODO get information from hub.
+	// c1.Close()
+	// time.Sleep(1 * time.Second)
+	// h, ok := hubs[roomName]
+	// assert.True(t, ok)
+	// assert.Equal(t, 1, len(h.Clients))
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	srv.Shutdown(ctx)

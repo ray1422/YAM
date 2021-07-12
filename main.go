@@ -7,6 +7,7 @@ import (
 
 func main() {
 	router := gin.Default()
-	room.RegisterRouter(router.Group("/room"))
+	apiRouter := router.Group("/api")
+	room.RegisterRouter(apiRouter.Group("/room"))
 	router.Run()
 }
