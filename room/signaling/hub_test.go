@@ -8,7 +8,11 @@ import (
 )
 
 func TestClientJoinAfterHubClose(t *testing.T) {
+	oldCleanerTimeout := cleanerTimeout
 	cleanerTimeout = 0 // mock
+	t.Cleanup(func() {
+		cleanerTimeout = oldCleanerTimeout
+	})
 	globalHubsLock.Lock()
 	hubs["www"] = CreateHub("www")
 	hub := hubs["www"]
