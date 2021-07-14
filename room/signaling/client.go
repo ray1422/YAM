@@ -30,20 +30,22 @@ const (
 )
 
 type Client struct {
-	hub      *Hub
-	id       string
-	conn     *websocket.Conn
-	send     chan []byte
-	sendJSON chan interface{}
+	hub       *Hub
+	id        string
+	conn      *websocket.Conn
+	send      chan []byte
+	sendJSON  chan interface{}
+	hubClosed chan bool
 }
 
 func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 	client := &Client{
-		hub:      h,
-		id:       xid.New().String(),
-		conn:     conn,
-		send:     make(chan []byte, 256),
-		sendJSON: make(chan interface{}),
+		hub:       h,
+		id:        xid.New().String(),
+		conn:      conn,
+		send:      make(chan []byte, 256),
+		sendJSON:  make(chan interface{}),
+		hubClosed: make(chan bool),
 	}
 
 	if conn != nil {
@@ -59,13 +61,17 @@ func (c *Client) close() {
 	if c.conn != nil {
 		c.conn.Close()
 	}
-	close(c.send)
-	close(c.sendJSON)
+	// close(c.send)
+	// close(c.sendJSON)
 }
 
 func (c *Client) ReadLoop() {
 	defer func() {
-		c.hub.UnregisterChan <- c
+		select {
+		case c.hub.UnregisterChan <- c:
+		case <-c.hubClosed:
+		}
+
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -106,8 +112,11 @@ func (c *Client) ReadLoop() {
 func (c *Client) WriteLoop() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
-		c.hub.UnregisterChan <- c
-		ticker.Stop()
+		select {
+		case c.hub.UnregisterChan <- c:
+		case <-c.hubClosed:
+		}
+
 	}()
 	for {
 		select {
@@ -163,8 +172,12 @@ func (c *Client) registerClient(data json.RawMessage) error {
 	if err != nil {
 		return err
 	}
-	log.Println(c.hub.RegisterChan)
-	c.hub.RegisterChan <- c // then hub will send list_client action to the client
+	timer := time.NewTimer(cleanerTimeout)
+	select {
+	case c.hub.RegisterChan <- c: // then hub will send list_client action to the client
+	case <-timer.C:
+		return errors.New("register timeout")
+	}
 	return nil
 }
 

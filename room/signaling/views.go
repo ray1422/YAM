@@ -3,21 +3,26 @@ package signaling
 import (
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
 var (
-	hubs = map[string]*Hub{}
+	hubs           = map[string]*Hub{}
+	globalHubsLock sync.RWMutex
 )
 
 func RoomWS(router *gin.RouterGroup, baseURL string) {
 	router.GET(baseURL+":room_id/ws/", func(c *gin.Context) {
-		if hubs[c.Param("room_id")] == nil {
-			hubs[c.Param("room_id")] = CreateHub()
+		roomID := c.Param("room_id")
+		globalHubsLock.Lock()
+		if hubs[roomID] == nil {
+			hubs[roomID] = CreateHub(roomID)
 		}
-		hub := hubs[c.Param("room_id")]
+		hub := hubs[roomID]
+		globalHubsLock.Unlock()
 		upgrader := websocket.Upgrader{
 			ReadBufferSize:  8192,
 			WriteBufferSize: 8192,

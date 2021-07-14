@@ -20,7 +20,7 @@ func TestParseAction(t *testing.T) {
 
 }
 func TestClientProvideDat(t *testing.T) {
-	client := CreateHub().NewClient(nil)
+	client := CreateHub("www").NewClient(nil)
 	fmt.Println("client ID:", client.id)
 	{
 		_, err := client.provideData([]byte(`{"remote_id":"www"}`), OFFER)

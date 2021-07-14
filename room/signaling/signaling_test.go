@@ -23,12 +23,16 @@ type listClientResponse struct {
 }
 
 func TestMultiClients(t *testing.T) {
-	hub := CreateHub()
+	globalHubsLock.Lock()
+	hubs["www"] = CreateHub("www")
+	hub := hubs["www"]
+	globalHubsLock.Unlock()
 	c1 := hub.NewClient(nil)
 	c2 := hub.NewClient(nil)
 	assert.NotNil(t, c1, c2)
 	c1.registerClient([]byte(`{"token": "www"}`))
 	c2.registerClient([]byte(`{"token": "www" }`))
+
 	// action
 	c1ReceiveBytes := <-c1.send
 	c2ReceiveBytes := <-c2.send
