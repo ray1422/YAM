@@ -21,19 +21,19 @@ const (
 
 var (
 	// JWTSecret JWT_SECRET from env
-	JWTSecret = utils.GetEnv("JWT_SECRET", "JWT_SECRET_EXAMPLE")
+	JWTSecret = utils.GetEnv("JWT_SECRET", "41b7861c918fc0ada0c4404c3aa8ecc868dfea5eecb5715e80eed1d7311dfcbb")
 )
 
 // JWT JWT
 type JWT struct {
-	header    map[string]string
-	payload   map[string]string
+	Header    map[string]string
+	Payload   map[string]string
 	signature string
 }
 
 func (j *JWT) genUnencryptedPartStr() string {
-	headerJSON, _ := json.Marshal(j.header)
-	payloadJSON, _ := json.Marshal(j.payload)
+	headerJSON, _ := json.Marshal(j.Header)
+	payloadJSON, _ := json.Marshal(j.Payload)
 	headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
 	payloadB64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
 	return headerB64 + "." + payloadB64
@@ -49,7 +49,7 @@ func (j *JWT) GenSignature() string {
 
 // TokenString Token to String
 func (j *JWT) TokenString() string {
-	return j.genUnencryptedPartStr() + j.GenSignature()
+	return j.genUnencryptedPartStr() + "." + j.GenSignature()
 }
 
 // FromString init JWT from string with verifying signature
@@ -64,7 +64,7 @@ func FromString(s string) (*JWT, error) {
 func (j *JWT) Check() bool {
 	// signature is verified in parse.
 	// check time
-	if ts, ok := j.payload["expire_time"]; ok {
+	if ts, ok := j.Payload["expire_time"]; ok {
 		if t, err := strconv.ParseInt(ts, 10, 64); err == nil {
 			if t < time.Now().Unix() { // seconds
 				return false
@@ -102,7 +102,7 @@ func parseToken(s string) (*JWT, error) {
 	}
 
 	jwt := JWT{}
-	jwt.header = header
-	jwt.payload = payload
+	jwt.Header = header
+	jwt.Payload = payload
 	return &jwt, nil
 }
