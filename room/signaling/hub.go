@@ -7,10 +7,6 @@ import (
 	"time"
 )
 
-var (
-	Rooms []Hub
-)
-
 type simpleData struct {
 	fromID string
 	toID   string
@@ -21,6 +17,8 @@ type simpleJSONData struct {
 	toID   string
 	data   interface{}
 }
+
+// Hub hub
 type Hub struct {
 	ID             string
 	Clients        map[string]*Client
@@ -37,6 +35,7 @@ var (
 	cleanerTimeout = 120 * time.Second
 )
 
+// CreateHub CreateHub
 func CreateHub(roomID string) *Hub {
 	h := &Hub{
 		ID:             roomID,
@@ -51,7 +50,7 @@ func CreateHub(roomID string) *Hub {
 	return h
 }
 
-// loop for hub. should be create in goroutine
+// HubLoop loop for hub. should be create in goroutine
 func (h *Hub) HubLoop() {
 	defer func() {
 		log.Println("hub closed")
@@ -80,7 +79,7 @@ func (h *Hub) HubLoop() {
 				log.Println("something went wrong", err)
 				continue
 			}
-			action := ActionWrapper{Action: "list_client", Data: json.RawMessage(clientsIDBytes)}
+			action := actionWrapper{Action: "list_client", Data: json.RawMessage(clientsIDBytes)}
 			clientListBytes, err := json.Marshal(action)
 			if err != nil {
 				log.Println("something went wrong")

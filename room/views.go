@@ -7,7 +7,7 @@ import (
 	"github.com/rs/xid"
 )
 
-type RoomIDPOST struct {
+type roomIDPOST struct {
 	password string
 }
 
@@ -29,7 +29,7 @@ func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
 		roomID, _ := c.Params.Get("room_id")
 		_ = roomID
 		// TODO verify roomID
-		body := RoomIDPOST{}
+		body := roomIDPOST{}
 		c.BindJSON(&body)
 		// TODO AUTH
 		// TODO impelement JWT token

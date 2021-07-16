@@ -14,6 +14,7 @@ var (
 	globalHubsLock sync.RWMutex
 )
 
+// RoomWS RoomWS
 func RoomWS(router *gin.RouterGroup, baseURL string) {
 	router.GET(baseURL+":room_id/ws/", func(c *gin.Context) {
 		roomID := c.Param("room_id")

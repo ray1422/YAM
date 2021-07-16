@@ -21,14 +21,19 @@ const (
 	maxMessageSize = 8192
 )
 
-type FORWARD_DATA_TYPE int32
+// ForwardDataType int32
+type ForwardDataType int32
 
 const (
-	OFFER     FORWARD_DATA_TYPE = iota
-	ANSWER    FORWARD_DATA_TYPE = iota
-	CANDIDATE FORWARD_DATA_TYPE = iota
+	// Offer Offer
+	Offer ForwardDataType = iota
+	// Answer Answer
+	Answer ForwardDataType = iota
+	// Candidate Candidate
+	Candidate ForwardDataType = iota
 )
 
+// Client client for each ws connection, handling read and write loop
 type Client struct {
 	hub       *Hub
 	id        string
@@ -38,6 +43,7 @@ type Client struct {
 	hubClosed chan bool
 }
 
+// NewClient new client
 func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 	client := &Client{
 		hub:       h,
@@ -49,8 +55,8 @@ func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 	}
 
 	if conn != nil {
-		go client.ReadLoop()
-		go client.WriteLoop()
+		go client.readLoop()
+		go client.writeLoop()
 	} else {
 		log.Println("conn is nil, it should only happen in units test.")
 	}
@@ -65,7 +71,7 @@ func (c *Client) close() {
 	// close(c.sendJSON)
 }
 
-func (c *Client) ReadLoop() {
+func (c *Client) readLoop() {
 	defer func() {
 		select {
 		case c.hub.UnregisterChan <- c:
@@ -93,23 +99,23 @@ func (c *Client) ReadLoop() {
 			c.registerClient(data)
 
 		case "provide_offer":
-			if dat, err := c.provideData(data, OFFER); err == nil {
+			if dat, err := c.provideData(data, Offer); err == nil {
 				c.hub.simpleChan <- dat
 			}
 
 		case "provide_answer":
-			if dat, err := c.provideData(data, ANSWER); err == nil {
+			if dat, err := c.provideData(data, Answer); err == nil {
 				c.hub.simpleChan <- dat
 			}
 		case "provide_candidate":
-			if dat, err := c.provideData(data, CANDIDATE); err == nil {
+			if dat, err := c.provideData(data, Candidate); err == nil {
 				c.hub.simpleChan <- dat
 			}
 		}
 	}
 }
 
-func (c *Client) WriteLoop() {
+func (c *Client) writeLoop() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		select {
@@ -155,16 +161,16 @@ func (c *Client) WriteLoop() {
 	}
 }
 
-type ForwardData struct {
+type forwardData struct {
 	RemoteID string `json:"remote_id"`
 	Data     string `json:"data"`
 }
-type RegisterData struct {
+type registerData struct {
 	Token string `json:"token"`
 }
 
 func (c *Client) registerClient(data json.RawMessage) error {
-	obj := RegisterData{}
+	obj := registerData{}
 	err := json.Unmarshal(data, &obj)
 	token := obj.Token
 	_ = token
@@ -181,8 +187,8 @@ func (c *Client) registerClient(data json.RawMessage) error {
 	return nil
 }
 
-func (c *Client) provideData(rawData json.RawMessage, provideType FORWARD_DATA_TYPE) (*simpleData, error) {
-	dat := ForwardData{Data: ""}
+func (c *Client) provideData(rawData json.RawMessage, provideType ForwardDataType) (*simpleData, error) {
+	dat := forwardData{Data: ""}
 	err := json.Unmarshal(rawData, &dat)
 	if err != nil || dat.Data == "" {
 		return nil, errors.New("bad request from client " + c.id)
@@ -192,11 +198,11 @@ func (c *Client) provideData(rawData json.RawMessage, provideType FORWARD_DATA_T
 	forwardDat.RemoteID = c.id // keeps the data but change the ID
 	actionName := ""
 	switch provideType {
-	case OFFER:
+	case Offer:
 		actionName = "forward_offer"
-	case ANSWER:
+	case Answer:
 		actionName = "forward_answer"
-	case CANDIDATE:
+	case Candidate:
 		actionName = "forward_candidate"
 	default:
 		return nil, errors.New("unknown action from client " + c.id)
@@ -208,7 +214,7 @@ func (c *Client) provideData(rawData json.RawMessage, provideType FORWARD_DATA_T
 		log.Println(err)
 		return nil, errors.New("something went wrong")
 	}
-	actionObj := ActionWrapper{Action: actionName, Data: dataStr}
+	actionObj := actionWrapper{Action: actionName, Data: dataStr}
 	actionStr, err := json.Marshal(actionObj)
 	if err != nil {
 		log.Println(err)
@@ -217,14 +223,14 @@ func (c *Client) provideData(rawData json.RawMessage, provideType FORWARD_DATA_T
 	return &simpleData{data: actionStr, toID: toID}, nil
 }
 
-type ActionWrapper struct {
+type actionWrapper struct {
 	Action string          `json:"action"`
 	Data   json.RawMessage `json:"data"`
 }
 
 // return: action, data, err
 func parseAction(inp []byte) (string, json.RawMessage, error) {
-	obj := ActionWrapper{Action: ""}
+	obj := actionWrapper{Action: ""}
 	err := json.Unmarshal(inp, &obj)
 	if err != nil {
 		return "", nil, err

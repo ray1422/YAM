@@ -23,7 +23,7 @@ func TestClientProvideDat(t *testing.T) {
 	client := CreateHub("www").NewClient(nil)
 	fmt.Println("client ID:", client.id)
 	{
-		_, err := client.provideData([]byte(`{"remote_id":"www"}`), OFFER)
+		_, err := client.provideData([]byte(`{"remote_id":"www"}`), Offer)
 		assert.NotNil(t, err, "")
 	}
 	{
@@ -32,16 +32,16 @@ func TestClientProvideDat(t *testing.T) {
 	}
 	// test for offer
 	{
-		dat, err := client.provideData([]byte(`{"remote_id":"www", "data": "yet_another_data"}`), OFFER)
+		dat, err := client.provideData([]byte(`{"remote_id":"www", "data": "yet_another_data"}`), Offer)
 		if assert.Nil(t, err) {
 			assert.Equal(t, "www", dat.toID)
 		}
-		actObj := ActionWrapper{}
+		actObj := actionWrapper{}
 		err = json.Unmarshal(dat.data, &actObj)
 		if assert.Nil(t, err) {
 			assert.Equal(t, "forward_offer", string(actObj.Action))
 		}
-		obj := ForwardData{}
+		obj := forwardData{}
 		err = json.Unmarshal(actObj.Data, &obj)
 		if assert.Nil(t, err) {
 			assert.Equal(t, "yet_another_data", string(obj.Data))
@@ -50,16 +50,16 @@ func TestClientProvideDat(t *testing.T) {
 	}
 	// test for answer
 	{
-		dat, err := client.provideData([]byte(`{"remote_id":"www", "data": "yet_another_data"}`), ANSWER)
+		dat, err := client.provideData([]byte(`{"remote_id":"www", "data": "yet_another_data"}`), Answer)
 		if assert.Nil(t, err) {
 			assert.Equal(t, "www", dat.toID)
 		}
-		actObj := ActionWrapper{}
+		actObj := actionWrapper{}
 		err = json.Unmarshal(dat.data, &actObj)
 		if assert.Nil(t, err) {
 			assert.Equal(t, "forward_answer", string(actObj.Action))
 		}
-		obj := ForwardData{}
+		obj := forwardData{}
 		err = json.Unmarshal(actObj.Data, &obj)
 		if assert.Nil(t, err) {
 			assert.Equal(t, "yet_another_data", string(obj.Data))
@@ -68,16 +68,16 @@ func TestClientProvideDat(t *testing.T) {
 	}
 	// test for candidate
 	{
-		dat, err := client.provideData([]byte(`{"remote_id":"www", "data": "yet_another_data"}`), CANDIDATE)
+		dat, err := client.provideData([]byte(`{"remote_id":"www", "data": "yet_another_data"}`), Candidate)
 		if assert.Nil(t, err) {
 			assert.Equal(t, "www", dat.toID)
 		}
-		actObj := ActionWrapper{}
+		actObj := actionWrapper{}
 		err = json.Unmarshal(dat.data, &actObj)
 		if assert.Nil(t, err) {
 			assert.Equal(t, "forward_candidate", string(actObj.Action))
 		}
-		obj := ForwardData{}
+		obj := forwardData{}
 		err = json.Unmarshal(actObj.Data, &obj)
 		if assert.Nil(t, err) {
 			assert.Equal(t, "yet_another_data", string(obj.Data))

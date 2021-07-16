@@ -36,7 +36,7 @@ func TestMultiClients(t *testing.T) {
 	// action
 	c1ReceiveBytes := <-c1.send
 	c2ReceiveBytes := <-c2.send
-	aw := ActionWrapper{}
+	aw := actionWrapper{}
 
 	// c1
 	assert.Nil(t, json.Unmarshal(c1ReceiveBytes, &aw))
@@ -51,18 +51,18 @@ func TestMultiClients(t *testing.T) {
 	assert.Equal(t, 1, len(obj.Clients))
 	assert.Equal(t, c2.id, obj.SelfClientID)
 	assert.Equal(t, c1.id, obj.Clients[0])
-	dat, err := c1.provideData([]byte(`{"remote_id":"`+c2.id+`", "data": "yet_another_data"}`), OFFER)
+	dat, err := c1.provideData([]byte(`{"remote_id":"`+c2.id+`", "data": "yet_another_data"}`), Offer)
 	assert.Equal(t, c2.id, dat.toID)
 	assert.Nil(t, err)
 	c1.hub.simpleChan <- dat
 	receiveBytes := <-c2.send
-	aw = ActionWrapper{}
+	aw = actionWrapper{}
 	err = json.Unmarshal(receiveBytes, &aw)
 	if !assert.Nil(t, err) {
 		return
 	}
 	assert.Equal(t, "forward_offer", aw.Action)
-	fw := ForwardData{}
+	fw := forwardData{}
 	err = json.Unmarshal(aw.Data, &fw)
 	if !assert.Nil(t, err) {
 		return
@@ -139,7 +139,7 @@ func TestWithRealConn(t *testing.T) {
 					assert.NotEqual(t, "", obj.SelfClientID)
 					c1IDChan <- obj.SelfClientID
 					c2.NextWriter(websocket.TextMessage)
-					err := c1.WriteJSON(&ActionWrapper{
+					err := c1.WriteJSON(&actionWrapper{
 						Action: "provide_offer",
 						Data:   json.RawMessage(`{"remote_id": "` + c2ID + `", "data": "` + msg + `"}`),
 					})
@@ -149,7 +149,7 @@ func TestWithRealConn(t *testing.T) {
 
 			case "forward_offer":
 				c2ID := <-c2IDChan
-				obj := ForwardData{RemoteID: ""}
+				obj := forwardData{RemoteID: ""}
 				assert.Nil(t, json.Unmarshal(dat, &obj))
 				assert.NotEqual(t, "", obj.RemoteID)
 				assert.Equal(t, c2ID, obj.RemoteID)
@@ -192,7 +192,7 @@ func TestWithRealConn(t *testing.T) {
 					assert.NotEqual(t, "", obj.SelfClientID)
 					c2IDChan <- obj.SelfClientID
 					c2.NextWriter(websocket.TextMessage)
-					err := c2.WriteJSON(&ActionWrapper{
+					err := c2.WriteJSON(&actionWrapper{
 						Action: "provide_offer",
 						Data:   json.RawMessage(`{"remote_id": "` + c1ID + `", "data": "` + msg + `"}`),
 					})
@@ -201,7 +201,7 @@ func TestWithRealConn(t *testing.T) {
 				}
 			case "forward_offer":
 				c1ID := <-c1IDChan
-				obj := ForwardData{RemoteID: ""}
+				obj := forwardData{RemoteID: ""}
 				assert.Nil(t, json.Unmarshal(dat, &obj))
 				assert.NotEqual(t, "", obj.RemoteID)
 				assert.Equal(t, c1ID, obj.RemoteID)
