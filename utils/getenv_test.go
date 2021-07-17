@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetEnv(t *testing.T) {
+func TestGetEnv(t *testing.T) { // for coverage LOL
 	s := "ASDF"
 	s2 := "qwerty"
 	os.Setenv("ASDF", s)

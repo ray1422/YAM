@@ -1,16 +1,14 @@
 package signaling
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -23,10 +21,10 @@ type listClientResponse struct {
 }
 
 func TestMultiClients(t *testing.T) {
-	globalHubsLock.Lock()
-	hubs["www"] = CreateHub("www")
-	hub := hubs["www"]
-	globalHubsLock.Unlock()
+	GlobalHubsLock.Lock()
+	Hubs["www"] = CreateHub("www")
+	hub := Hubs["www"]
+	GlobalHubsLock.Unlock()
 	c1 := hub.NewClient(nil)
 	c2 := hub.NewClient(nil)
 	assert.NotNil(t, c1, c2)
@@ -75,23 +73,21 @@ func TestWithRealConn(t *testing.T) {
 	done := make(chan bool)
 	router := gin.Default()
 	RoomWS(router.Group("/api/room"), "/")
-	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: router,
-	}
+	s := httptest.NewServer(router)
+	defer s.Close()
+
+	// srv := &http.Server{
+	// 	Addr:    ":8080",
+	// 	Handler: router,
+	// }
 
 	// Initializing the server in a goroutine so that
 	// it won't block the graceful shutdown handling below
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
-			log.Printf("listen: %s\n", err)
-		}
-	}()
 
 	flag.Parse()
 	log.SetFlags(0)
 
-	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/api/room/" + roomName + "/ws/"}
+	u := url.URL{Scheme: "ws", Host: strings.TrimPrefix(s.URL, "http://"), Path: "/api/room/" + roomName + "/ws/"}
 	log.Printf("connecting to %s", u.String())
 	c1IDChan := make(chan string, 1)
 	c2IDChan := make(chan string, 1)
@@ -220,7 +216,5 @@ func TestWithRealConn(t *testing.T) {
 	// h, ok := hubs[roomName]
 	// assert.True(t, ok)
 	// assert.Equal(t, 1, len(h.Clients))
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	srv.Shutdown(ctx)
+
 }

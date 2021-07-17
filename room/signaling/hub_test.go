@@ -13,10 +13,10 @@ func TestClientJoinAfterHubClose(t *testing.T) {
 	t.Cleanup(func() {
 		cleanerTimeout = oldCleanerTimeout
 	})
-	globalHubsLock.Lock()
-	hubs["www"] = CreateHub("www")
-	hub := hubs["www"]
-	globalHubsLock.Unlock()
+	GlobalHubsLock.Lock()
+	Hubs["www"] = CreateHub("www")
+	hub := Hubs["www"]
+	GlobalHubsLock.Unlock()
 	c1 := hub.NewClient(nil)
 	time.Sleep(300 * time.Millisecond) // make it timeout
 	assert.NotNil(t, c1.registerClient([]byte(`{"token": "www"}`)))

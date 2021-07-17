@@ -8,14 +8,26 @@ import (
 )
 
 type simpleData struct {
-	fromID string
-	toID   string
-	data   []byte
+	toID string
+	data []byte
 }
 type simpleJSONData struct {
-	fromID string
-	toID   string
-	data   interface{}
+	toID string
+	data interface{}
+}
+
+type Addr struct {
+	Network string
+	Address string
+}
+type Member struct {
+	Addr Addr   `json:"addr"`
+	ID   string `json:"id"`
+}
+
+type HubInfo struct {
+	ID      string
+	Members []Member
 }
 
 // Hub hub
@@ -28,6 +40,8 @@ type Hub struct {
 	simpleChan     chan *simpleData
 	simpleJSONChan chan *simpleJSONData
 
+	RequestInfoChan chan *chan *HubInfo
+
 	cleanTimer time.Timer
 }
 
@@ -38,13 +52,14 @@ var (
 // CreateHub CreateHub
 func CreateHub(roomID string) *Hub {
 	h := &Hub{
-		ID:             roomID,
-		Clients:        map[string]*Client{},
-		RegisterChan:   make(chan *Client),
-		UnregisterChan: make(chan *Client),
-		simpleChan:     make(chan *simpleData, 8192),
-		simpleJSONChan: make(chan *simpleJSONData, 8192),
-		cleanTimer:     *time.NewTimer(cleanerTimeout),
+		ID:              roomID,
+		Clients:         map[string]*Client{},
+		RegisterChan:    make(chan *Client),
+		UnregisterChan:  make(chan *Client),
+		simpleChan:      make(chan *simpleData, 8192),
+		simpleJSONChan:  make(chan *simpleJSONData, 8192),
+		RequestInfoChan: make(chan *chan *HubInfo, 512),
+		cleanTimer:      *time.NewTimer(cleanerTimeout),
 	}
 	go h.HubLoop()
 	return h
@@ -101,13 +116,33 @@ func (h *Hub) HubLoop() {
 		case dat := <-h.simpleJSONChan:
 			h.Clients[dat.toID].sendJSON <- dat.data
 
+		case ch := <-h.RequestInfoChan:
+			ms := []Member{}
+			for idx, c := range h.Clients {
+				ms = append(ms, Member{
+					ID: idx,
+					Addr: Addr{
+						Network: c.conn.RemoteAddr().Network(),
+						Address: c.conn.RemoteAddr().String(),
+					},
+				})
+			}
+			*ch <- &HubInfo{
+				ID:      h.ID,
+				Members: ms,
+			}
 		case <-h.cleanTimer.C:
 			for _, c := range h.Clients {
 				c.hubClosed <- true
 			}
-			globalHubsLock.Lock()
-			delete(hubs, h.ID)
-			globalHubsLock.Unlock()
+			select {
+			case ch := <-h.RequestInfoChan:
+				*ch <- nil
+			default:
+			}
+			GlobalHubsLock.Lock()
+			delete(Hubs, h.ID)
+			GlobalHubsLock.Unlock()
 			return
 		}
 

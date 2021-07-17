@@ -27,5 +27,4 @@ func TestJWT(t *testing.T) {
 	jwt2, err := FromString(s)
 	assert.Nil(t, err)
 	assert.Equal(t, jwt.GenSignature(), jwt2.GenSignature())
-
 }

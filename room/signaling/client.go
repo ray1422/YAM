@@ -51,7 +51,7 @@ func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 		conn:      conn,
 		send:      make(chan []byte, 256),
 		sendJSON:  make(chan interface{}),
-		hubClosed: make(chan bool),
+		hubClosed: make(chan bool, 1),
 	}
 
 	if conn != nil {
