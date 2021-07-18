@@ -76,14 +76,6 @@ func TestWithRealConn(t *testing.T) {
 	s := httptest.NewServer(router)
 	defer s.Close()
 
-	// srv := &http.Server{
-	// 	Addr:    ":8080",
-	// 	Handler: router,
-	// }
-
-	// Initializing the server in a goroutine so that
-	// it won't block the graceful shutdown handling below
-
 	flag.Parse()
 	log.SetFlags(0)
 

@@ -13,7 +13,8 @@ type roomIDPOST struct {
 
 func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
 	roomGroup.GET(baseURL, func(c *gin.Context) {
-		c.JSON(http.StatusOK, map[string]interface{}{"error": "NOT_IMPLEMENTED_YET"})
+		// TODO authorization
+		c.JSON(http.StatusOK, hubList())
 		// TODO Pagination
 	})
 	roomGroup.POST(baseURL, func(c *gin.Context) {
@@ -23,7 +24,12 @@ func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
 		roomID, _ := c.Params.Get("room_id")
 		_ = roomID
 		// TODO verify roomID
-		c.JSON(http.StatusOK, map[string]interface{}{"members": []string{}, "error": "NOT_IMPLEMENTED_YET"})
+		info, err := hubInfo(roomID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, nil)
+			return
+		}
+		c.JSON(http.StatusOK, info)
 	})
 	roomGroup.POST(baseURL+":room_id/", func(c *gin.Context) {
 		roomID, _ := c.Params.Get("room_id")
