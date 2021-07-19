@@ -11,10 +11,6 @@ type simpleData struct {
 	toID string
 	data []byte
 }
-type simpleJSONData struct {
-	toID string
-	data interface{}
-}
 
 type Addr struct {
 	Network string
@@ -37,8 +33,7 @@ type Hub struct {
 	RegisterChan   chan *Client // must be unbuffered chan to make sure send await register
 	UnregisterChan chan *Client // must be unbuffered chan
 
-	simpleChan     chan *simpleData
-	simpleJSONChan chan *simpleJSONData
+	simpleChan chan *simpleData
 
 	RequestInfoChan chan *chan *HubInfo
 
@@ -57,7 +52,6 @@ func CreateHub(roomID string) *Hub {
 		RegisterChan:    make(chan *Client),
 		UnregisterChan:  make(chan *Client),
 		simpleChan:      make(chan *simpleData, 8192),
-		simpleJSONChan:  make(chan *simpleJSONData, 8192),
 		RequestInfoChan: make(chan *chan *HubInfo, 512),
 		cleanTimer:      *time.NewTimer(cleanerTimeout),
 	}
@@ -109,12 +103,11 @@ func (h *Hub) HubLoop() {
 			client.close()
 			delete(h.Clients, client.id)
 			h.cleanTimer.Reset(5 * time.Second)
+
 		case dat := <-h.simpleChan:
 			if _, ok := h.Clients[dat.toID]; ok {
 				h.Clients[dat.toID].send <- dat.data
 			}
-		case dat := <-h.simpleJSONChan:
-			h.Clients[dat.toID].sendJSON <- dat.data
 
 		case ch := <-h.RequestInfoChan:
 			ms := []Member{}

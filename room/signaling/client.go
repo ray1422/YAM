@@ -39,7 +39,6 @@ type Client struct {
 	id        string
 	conn      *websocket.Conn
 	send      chan []byte
-	sendJSON  chan interface{}
 	hubClosed chan bool
 }
 
@@ -50,7 +49,6 @@ func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 		id:        xid.New().String(),
 		conn:      conn,
 		send:      make(chan []byte, 256),
-		sendJSON:  make(chan interface{}),
 		hubClosed: make(chan bool, 1),
 	}
 
@@ -142,16 +140,7 @@ func (c *Client) writeLoop() {
 			if err != nil {
 				return
 			}
-		case msg, ok := <-c.sendJSON:
-			if !ok {
-				// chan is closed then close the conn
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
-				return
-			}
-			err := c.conn.WriteJSON(msg)
-			if err != nil {
-				return
-			}
+
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
