@@ -103,7 +103,21 @@ func (h *Hub) HubLoop() {
 			client.close()
 			delete(h.Clients, client.id)
 			h.cleanTimer.Reset(5 * time.Second)
+			for _, c := range h.Clients {
+				b, err := json.Marshal(map[string]interface{}{
+					"action": "client_event",
+					"data": map[string]string{
+						"remote_id": client.id,
+						"event":     "leave",
+					},
+				})
+				if err == nil {
+					c.send <- b
+				} else {
+					log.Println(err)
+				}
 
+			}
 		case dat := <-h.simpleChan:
 			if _, ok := h.Clients[dat.toID]; ok {
 				h.Clients[dat.toID].send <- dat.data

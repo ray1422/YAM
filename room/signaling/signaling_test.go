@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -21,6 +22,7 @@ type listClientResponse struct {
 }
 
 func TestMultiClients(t *testing.T) {
+
 	GlobalHubsLock.Lock()
 	Hubs["www"] = CreateHub("www")
 	hub := Hubs["www"]
@@ -72,6 +74,7 @@ func TestWithRealConn(t *testing.T) {
 	roomName := "adsf"
 	done := make(chan bool)
 	router := gin.Default()
+	var c1ID string
 	RoomWS(router.Group("/api/room"), "/")
 	s := httptest.NewServer(router)
 	defer s.Close()
@@ -87,7 +90,7 @@ func TestWithRealConn(t *testing.T) {
 	if err != nil {
 		log.Fatal("dial:", err)
 	}
-	defer c1.Close()
+	// defer c1.Close() // c1 will be closed in the following section to test the leave signal
 	c2, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Fatal("dial:", err)
@@ -122,7 +125,7 @@ func TestWithRealConn(t *testing.T) {
 					c1IDChan <- obj.SelfClientID
 				} else {
 					assert.Equal(t, 1, len(obj.Clients))
-					c2ID := <-c1IDChan
+					c2ID := <-c2IDChan
 					assert.Equal(t, c2ID, obj.Clients[0])
 					assert.NotEqual(t, "", obj.SelfClientID)
 					c1IDChan <- obj.SelfClientID
@@ -172,10 +175,10 @@ func TestWithRealConn(t *testing.T) {
 				if len(obj.Clients) == 0 {
 					assert.Equal(t, 0, len(obj.Clients))
 					assert.NotEqual(t, "", obj.SelfClientID)
-					c1IDChan <- obj.SelfClientID
+					c2IDChan <- obj.SelfClientID
 				} else {
 					assert.Equal(t, 1, len(obj.Clients))
-					c1ID := <-c1IDChan
+					c1ID = <-c1IDChan
 					assert.Equal(t, c1ID, obj.Clients[0])
 					assert.NotEqual(t, "", obj.SelfClientID)
 					c2IDChan <- obj.SelfClientID
@@ -203,10 +206,58 @@ func TestWithRealConn(t *testing.T) {
 	<-done
 	<-done
 	// TODO get information from hub.
-	// c1.Close()
-	// time.Sleep(1 * time.Second)
-	// h, ok := hubs[roomName]
-	// assert.True(t, ok)
-	// assert.Equal(t, 1, len(h.Clients))
+	c1.Close()
+	leaveSig := struct {
+		Action string `json:"action"`
+		Data   struct {
+			RemoteID string `json:"remote_id"`
+			Event    string `json:"event"`
+		}
+	}{}
+	assert.Nil(t, c2.ReadJSON(&leaveSig))
+	assert.Equal(t, "client_event", leaveSig.Action)
+	assert.NotEmpty(t, leaveSig.Data.RemoteID)
+	assert.Equal(t, "leave", leaveSig.Data.Event)
+	ch := make(chan *HubInfo, 1)
 
+	Hubs[roomName].RequestInfoChan <- &ch
+
+	// time.Sleep(1 * time.Second)
+	// GlobalHubsLock.RLock()
+	// h, ok := Hubs[roomName]
+	info := <-ch
+	assert.Equal(t, 1, len(info.Members))
+	// GlobalHubsLock.Unlock()
+
+}
+
+func newWS() *websocket.Conn {
+	s := httptest.NewServer(http.HandlerFunc(echo))
+	defer s.Close()
+	// Convert http://127.0.0.1 to ws://127.0.0.1
+	u := "ws" + strings.TrimPrefix(s.URL, "http")
+
+	// Connect to the server
+	ws, _, _ := websocket.DefaultDialer.Dial(u, nil)
+
+	return ws
+}
+
+func echo(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{}
+	c, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer c.Close()
+	for {
+		mt, message, err := c.ReadMessage()
+		if err != nil {
+			break
+		}
+		err = c.WriteMessage(mt, message)
+		if err != nil {
+			break
+		}
+	}
 }
