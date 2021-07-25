@@ -97,9 +97,6 @@ func (h *Hub) HubLoop() {
 			client.send <- clientListBytes
 			h.Clients[client.id] = client
 		case client := <-h.UnregisterChan:
-			if client == nil || h.Clients[client.id] == nil {
-				continue
-			}
 			client.close()
 			delete(h.Clients, client.id)
 			h.cleanTimer.Reset(5 * time.Second)

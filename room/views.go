@@ -2,8 +2,11 @@ package room
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ray1422/YAM-api/room/signaling"
+	"github.com/ray1422/YAM-api/utils/jwt"
 	"github.com/rs/xid"
 )
 
@@ -38,11 +41,19 @@ func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
 		body := roomIDPOST{}
 		c.BindJSON(&body)
 		// TODO AUTH
-		// TODO impelement JWT token
-		c.JSON(http.StatusOK, map[string]interface{}{"token": "EXAMPLE_TOKEN", "refresh": "EXAMPLE_REFRESH"})
+		// TODO impl jwt pair (token & refresh)
+		signaling.GlobalHubsLock.Lock()
+		if signaling.Hubs[roomID] == nil {
+			signaling.Hubs[roomID] = signaling.CreateHub(roomID)
+		}
+
+		signaling.GlobalHubsLock.Unlock()
+		token := jwt.New(48 * time.Hour)
+		token.Payload["room_id"] = roomID
+		c.JSON(http.StatusOK, map[string]interface{}{"token": token.TokenString(), "refresh": "EXAMPLE_REFRESH"})
 	})
 
 	roomGroup.DELETE(baseURL+":room_id/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, map[string]interface{}{"members": []string{}, "error": "NOT_IMPLEMENTED_YET"})
+		c.JSON(http.StatusOK, map[string]interface{}{"error": "NOT_IMPLEMENTED_YET"})
 	})
 }

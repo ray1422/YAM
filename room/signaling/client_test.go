@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -85,4 +86,11 @@ func TestClientProvideDat(t *testing.T) {
 		}
 	}
 	client.hub.UnregisterChan <- client
+}
+
+func TestClientRegisterTimeout(t *testing.T) {
+	h := CreateHub("asdf")
+	c := h.NewClient(newWS())
+	time.Sleep(5500 * time.Millisecond)
+	assert.NotNil(t, c.conn.WriteJSON(&map[string]string{}))
 }

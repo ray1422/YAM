@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/ray1422/YAM-api/utils/jwt"
 	"github.com/rs/xid"
 )
 
@@ -40,6 +41,7 @@ type Client struct {
 	conn      *websocket.Conn
 	send      chan []byte
 	hubClosed chan bool
+	register  chan bool
 }
 
 // NewClient new client
@@ -50,11 +52,28 @@ func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 		conn:      conn,
 		send:      make(chan []byte, 256),
 		hubClosed: make(chan bool, 1),
+		register:  make(chan bool, 1),
 	}
 
 	if conn != nil {
 		go client.readLoop()
 		go client.writeLoop()
+		t := time.NewTimer(5 * time.Second)
+		go func() {
+			select {
+			case <-t.C:
+				select {
+				case client.hub.UnregisterChan <- client:
+				case <-client.hubClosed:
+				}
+				log.Println("waiting for registering timeout")
+			case <-client.register:
+				close(client.register)
+				client.register = nil
+				t.Stop()
+			}
+		}()
+
 	} else {
 		log.Println("conn is nil, it should only happen in units test.")
 	}
@@ -63,6 +82,7 @@ func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 }
 func (c *Client) close() {
 	if c.conn != nil {
+		log.Println("close client")
 		c.conn.Close()
 	}
 	// close(c.send)
@@ -75,7 +95,6 @@ func (c *Client) readLoop() {
 		case c.hub.UnregisterChan <- c:
 		case <-c.hubClosed:
 		}
-
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -158,21 +177,43 @@ type registerData struct {
 	Token string `json:"token"`
 }
 
-func (c *Client) registerClient(data json.RawMessage) error {
+func (c *Client) registerClient(data json.RawMessage) (e error) {
+	defer func() {
+		if r := recover(); r != nil {
+			e = errors.New("client has been registered")
+		}
+	}()
+	if c.register == nil {
+		return errors.New("client has been registered")
+	}
+
 	obj := registerData{}
 	err := json.Unmarshal(data, &obj)
-	token := obj.Token
-	_ = token
-	// TODO verify token
 	if err != nil {
 		return err
 	}
+	token := obj.Token
+	jwt, err := jwt.FromString(token)
+	if err != nil {
+		return err
+	}
+	if !jwt.Check() {
+		log.Println("invalid token:", token)
+		return errors.New("invalid token")
+	}
+	if v, ok := jwt.Payload["room_id"]; ok && v == c.hub.ID {
+
+	} else {
+		return errors.New("invalid token")
+	}
 	timer := time.NewTimer(cleanerTimeout)
+
 	select {
 	case c.hub.RegisterChan <- c: // then hub will send list_client action to the client
 	case <-timer.C:
 		return errors.New("register timeout")
 	}
+	c.register <- true
 	return nil
 }
 

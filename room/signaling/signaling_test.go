@@ -8,11 +8,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/ray1422/YAM-api/utils/jwt"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,8 +33,10 @@ func TestMultiClients(t *testing.T) {
 	c1 := hub.NewClient(nil)
 	c2 := hub.NewClient(nil)
 	assert.NotNil(t, c1, c2)
-	c1.registerClient([]byte(`{"token": "www"}`))
-	c2.registerClient([]byte(`{"token": "www" }`))
+	token := jwt.New(48 * time.Hour)
+	token.Payload["room_id"] = "www"
+	assert.Nil(t, c1.registerClient([]byte(`{"token": "`+token.TokenString()+`"}`)))
+	assert.Nil(t, c2.registerClient([]byte(`{"token": "`+token.TokenString()+`"}`)))
 
 	// action
 	c1ReceiveBytes := <-c1.send
@@ -71,7 +76,8 @@ func TestMultiClients(t *testing.T) {
 }
 
 func TestWithRealConn(t *testing.T) {
-	roomName := "adsf"
+	os.Setenv("DEBUG", "true")
+	roomName := "neo"
 	done := make(chan bool)
 	router := gin.Default()
 	var c1ID string
@@ -100,7 +106,9 @@ func TestWithRealConn(t *testing.T) {
 
 	// readloop for c1
 	go func(t *testing.T, msg string) {
-		c1.WriteMessage(websocket.TextMessage, []byte(`{"action": "register_client", "data": {"token": "w"}}`))
+		token := jwt.New(48 * time.Hour)
+		token.Payload["room_id"] = roomName
+		c1.WriteMessage(websocket.TextMessage, []byte(`{"action": "register_client", "data": {"token": "`+token.TokenString()+`"}}`))
 		defer func() {
 			fmt.Println("c1 done")
 			done <- true
@@ -153,7 +161,9 @@ func TestWithRealConn(t *testing.T) {
 
 	// readloop for c2
 	go func(t *testing.T, msg string) {
-		c2.WriteMessage(websocket.TextMessage, []byte(`{"action": "register_client", "data": {"token": "w"}}`))
+		token := jwt.New(48 * time.Hour)
+		token.Payload["room_id"] = roomName
+		c2.WriteMessage(websocket.TextMessage, []byte(`{"action": "register_client", "data": {"token": "`+token.TokenString()+`"}}`))
 		defer func() {
 			fmt.Println("c2 done")
 			done <- true

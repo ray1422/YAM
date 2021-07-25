@@ -3,6 +3,7 @@ package signaling
 import (
 	"log"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -21,7 +22,12 @@ func RoomWS(router *gin.RouterGroup, baseURL string) {
 		roomID := c.Param("room_id")
 		GlobalHubsLock.Lock()
 		if Hubs[roomID] == nil {
-			Hubs[roomID] = CreateHub(roomID)
+			if roomID == "neo" && os.Getenv("DEBUG") != "" { // TODO temp hardcoded
+				Hubs[roomID] = CreateHub(roomID)
+			} else {
+				c.JSON(http.StatusUnauthorized, nil)
+				return
+			}
 		}
 		hub := Hubs[roomID]
 		GlobalHubsLock.Unlock()
@@ -36,4 +42,5 @@ func RoomWS(router *gin.RouterGroup, baseURL string) {
 		}
 		hub.NewClient(conn)
 	})
+
 }

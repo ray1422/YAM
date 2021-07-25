@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -48,7 +49,7 @@ func (j *JWT) GenSignature() string {
 }
 
 // TokenString Token to String
-func (j *JWT) TokenString() string {
+func (j JWT) TokenString() string {
 	return j.genUnencryptedPartStr() + "." + j.GenSignature()
 }
 
@@ -58,6 +59,14 @@ func FromString(s string) (*JWT, error) {
 		return nil, InvalidSignatureError(errors.New("token too long"))
 	}
 	return parseToken(s)
+}
+func New(expireIn time.Duration) JWT {
+	return JWT{
+		Header: map[string]string{},
+		Payload: map[string]string{
+			"expire_time": fmt.Sprintf("%d", time.Now().Add(expireIn).Unix()),
+		},
+	}
 }
 
 // Check check if a jwt token is not expire_time

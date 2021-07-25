@@ -9,15 +9,12 @@ import (
 )
 
 func TestJWT(t *testing.T) {
-	jwt := JWT{
-		Header: map[string]string{
-			"alg": "HS256",
-			"typ": "jwt",
-		},
-		Payload: map[string]string{
-			"expire_time": fmt.Sprint(time.Now().Unix() + 5),
-		},
+	jwt := New(time.Hour)
+	jwt.Header = map[string]string{
+		"alg": "HS256",
+		"typ": "jwt",
 	}
+
 	assert.True(t, jwt.Check())
 	delete(jwt.Payload, "expire_time")
 	assert.False(t, jwt.Check())
