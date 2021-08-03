@@ -21,6 +21,7 @@ func RoomWS(router *gin.RouterGroup, baseURL string) {
 	router.GET(baseURL+":room_id/ws/", func(c *gin.Context) {
 		roomID := c.Param("room_id")
 		GlobalHubsLock.Lock()
+		defer GlobalHubsLock.Unlock()
 		if Hubs[roomID] == nil {
 			if roomID == "neo" && os.Getenv("DEBUG") != "" { // TODO temp hardcoded
 				Hubs[roomID] = CreateHub(roomID)
@@ -30,7 +31,7 @@ func RoomWS(router *gin.RouterGroup, baseURL string) {
 			}
 		}
 		hub := Hubs[roomID]
-		GlobalHubsLock.Unlock()
+
 		upgrader := websocket.Upgrader{
 			ReadBufferSize:  8192,
 			WriteBufferSize: 8192,
