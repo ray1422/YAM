@@ -2,7 +2,6 @@ package signaling
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"time"
 )
@@ -37,11 +36,11 @@ type Hub struct {
 
 	RequestInfoChan chan *chan *HubInfo
 
-	cleanTimer time.Timer
+	cleanTicker time.Ticker
 }
 
 var (
-	cleanerTimeout = 120 * time.Second
+	cleanerTimeout = 30 * time.Second
 )
 
 // CreateHub CreateHub
@@ -53,7 +52,7 @@ func CreateHub(roomID string) *Hub {
 		UnregisterChan:  make(chan *Client),
 		simpleChan:      make(chan *simpleData, 8192),
 		RequestInfoChan: make(chan *chan *HubInfo, 512),
-		cleanTimer:      *time.NewTimer(cleanerTimeout),
+		cleanTicker:     *time.NewTicker(cleanerTimeout),
 	}
 	go h.HubLoop()
 	return h
@@ -67,18 +66,7 @@ func (h *Hub) HubLoop() {
 	for {
 		select {
 		case client := <-h.RegisterChan:
-			if !h.cleanTimer.Stop() { // hub has been closed
-				fmt.Println("hub has been closed")
-				select {
-				case <-h.cleanTimer.C:
-				default:
-				}
-
-				client.hubClosed <- true
-				client.close()
-				return
-			}
-			h.cleanTimer.Reset(cleanerTimeout)
+			h.cleanTicker.Reset(cleanerTimeout)
 			clientsID := []string{}
 			for i := range h.Clients {
 				clientsID = append(clientsID, i)
@@ -99,7 +87,7 @@ func (h *Hub) HubLoop() {
 		case client := <-h.UnregisterChan:
 			client.close()
 			delete(h.Clients, client.id)
-			h.cleanTimer.Reset(5 * time.Second)
+			h.cleanTicker.Reset(5 * time.Second)
 			for _, c := range h.Clients {
 				b, err := json.Marshal(map[string]interface{}{
 					"action": "client_event",
@@ -113,7 +101,6 @@ func (h *Hub) HubLoop() {
 				} else {
 					log.Println(err)
 				}
-
 			}
 		case dat := <-h.simpleChan:
 			if _, ok := h.Clients[dat.toID]; ok {
@@ -135,7 +122,12 @@ func (h *Hub) HubLoop() {
 				ID:      h.ID,
 				Members: ms,
 			}
-		case <-h.cleanTimer.C:
+		case <-h.cleanTicker.C:
+			if len(h.Clients) > 0 {
+				h.cleanTicker.Reset(cleanerTimeout)
+				continue
+			}
+			log.Println("hub " + h.ID + " close due to no clients in room")
 			for _, c := range h.Clients {
 				c.hubClosed <- true
 			}

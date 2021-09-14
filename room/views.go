@@ -11,7 +11,7 @@ import (
 )
 
 type roomIDPOST struct {
-	Password string `json:"password"`
+	Password string `json:"password,omitempty"`
 }
 
 func roomViews(roomGroup *gin.RouterGroup, baseURL string) {

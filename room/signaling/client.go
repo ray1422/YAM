@@ -66,8 +66,10 @@ func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 				select {
 				case client.hub.UnregisterChan <- client:
 				case <-client.hubClosed:
+				default:
+					client.close()
 				}
-				log.Println("waiting for registering timeout")
+				log.Println("client close due to register timeout.")
 			case <-client.register:
 				close(client.register)
 				client.register = nil
@@ -83,7 +85,6 @@ func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 }
 func (c *Client) close() {
 	if c.conn != nil {
-		log.Println("close client")
 		c.conn.Close()
 	}
 	// close(c.send)

@@ -101,7 +101,7 @@ func TestWithRealConn(t *testing.T) {
 	if err != nil {
 		log.Fatal("dial:", err)
 	}
-	msg := "yet_another_data+w"
+	msg := "yet_another_data"
 	defer c2.Close()
 
 	// readloop for c1
