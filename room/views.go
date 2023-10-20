@@ -14,18 +14,19 @@ type roomIDPost struct {
 }
 
 type view struct {
-	hubModel Hub
+	hub Hub
 }
 
+// View provide the interface that allows registering views to the router
 type View interface {
 	Views(roomGroup *gin.RouterGroup, baseURL string)
 }
 
 func (r view) Views(roomGroup *gin.RouterGroup, baseURL string) {
-	r.hubModel.handleWS(roomGroup, "/")
+	r.hub.handleWS(roomGroup, "/")
 	roomGroup.GET(baseURL, func(c *gin.Context) {
 		// TODO authorization
-		c.JSON(http.StatusOK, r.hubModel.roomList())
+		c.JSON(http.StatusOK, r.hub.roomList())
 		// TODO Pagination
 	})
 	roomGroup.POST(baseURL, func(c *gin.Context) {
@@ -35,7 +36,7 @@ func (r view) Views(roomGroup *gin.RouterGroup, baseURL string) {
 		roomID, _ := c.Params.Get("room_id")
 		_ = roomID
 		// TODO verify roomID
-		info, err := r.hubModel.roomInfo(roomID)
+		info, err := r.hub.roomInfo(roomID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, nil)
 			return
@@ -51,7 +52,7 @@ func (r view) Views(roomGroup *gin.RouterGroup, baseURL string) {
 		// TODO AUTH
 		// TODO impl jwt pair (token & refresh)
 
-		r.hubModel.roomCreate(roomID)
+		r.hub.roomCreate(roomID)
 
 		token := jwt.New(48 * time.Hour)
 		token.Payload["room_id"] = roomID

@@ -6,6 +6,6 @@ import (
 
 // RegisterRouter RegisterRouter
 func RegisterRouter(roomGroup *gin.RouterGroup, r Hub) {
-	v := view{hubModel: r}
+	v := view{hub: r}
 	v.Views(roomGroup, "/")
 }
