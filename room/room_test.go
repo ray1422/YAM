@@ -54,7 +54,7 @@ func testJoinClient(wsURL string, joinURL string) (*websocket.Conn, error) {
 func TestListHub(t *testing.T) {
 	roomName := "adsf"
 	router := gin.Default()
-	RegisterRouter(router.Group("/api/room"))
+	RegisterRouter(router.Group("/api/room"), hub{sigSrv: signaling.New()})
 	s := httptest.NewServer(router)
 	defer s.Close()
 	joinU := url.URL{Scheme: "http", Host: strings.TrimPrefix(s.URL, "http://"), Path: "/api/room/" + roomName + "/"}

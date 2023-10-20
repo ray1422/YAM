@@ -2,22 +2,22 @@ package signaling
 
 import "errors"
 
-// HubList list all hubs
-func HubList() []string {
-	globalHubsLock.RLock()
+// RoomList list all hubs
+func (s *server) RoomList() []string {
+	s.hubLock.RLock()
+	defer s.hubLock.RUnlock()
 	hubsID := []string{}
-	for c := range hubs {
+	for c := range s.hubs {
 		hubsID = append(hubsID, c)
 	}
-	globalHubsLock.RUnlock()
 	return hubsID
 }
 
-// HubInfoByID returns HubInfo
-func HubInfoByID(hubID string) (*HubInfo, error) {
-	globalHubsLock.RLock()
-	defer globalHubsLock.RUnlock()
-	h, ok := hubs[hubID]
+// RoomInfoByID returns HubInfo
+func (s *server) RoomInfoByID(hubID string) (*HubInfo, error) {
+	s.hubLock.RLock()
+	defer s.hubLock.RUnlock()
+	h, ok := s.hubs[hubID]
 	if !ok {
 		return nil, errors.New("hub not found")
 	}

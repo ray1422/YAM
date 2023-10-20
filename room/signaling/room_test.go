@@ -12,13 +12,13 @@ import (
 )
 
 func TestClientJoinAfterHubClose(t *testing.T) {
+	s := New()
 	oldCleanerTimeout := cleanerTimeout
 	cleanerTimeout = 100 * time.Millisecond // mock
 	t.Cleanup(func() {
 		cleanerTimeout = oldCleanerTimeout
 	})
-	hubs["www"] = CreateHub("www")
-	hub := hubs["www"]
+	hub := s.RoomCreate("www")
 	c1 := hub.NewClient(nil)
 	time.Sleep(300 * time.Millisecond) // make it timeout
 	assert.NotNil(t, c1.registerClient([]byte(`{"token": "www"}`)))
@@ -26,6 +26,7 @@ func TestClientJoinAfterHubClose(t *testing.T) {
 }
 
 func TestHubInfo(t *testing.T) {
+	sigSrv := New()
 	s := httptest.NewServer(http.HandlerFunc(echo))
 	defer s.Close()
 	// Convert http://127.0.0.1 to ws://127.0.0.1
@@ -37,17 +38,17 @@ func TestHubInfo(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	defer ws.Close()
-	CreateHub("www")
-	CreateHub("asdf")
-	h := hubs["www"]
+	h := sigSrv.RoomCreate("www")
+	sigSrv.RoomCreate("asdf")
+
 	c := h.NewClient(ws)
 	h.RegisterChan <- c
-	hi, err := HubInfoByID("www")
+	hi, err := sigSrv.RoomInfoByID("www")
 	assert.Nil(t, err)
 	assert.Equal(t, hi.ID, "www")
 	assert.Equal(t, 1, len(hi.Members))
 	h.UnregisterChan <- c
-	hi, err = HubInfoByID("www")
+	hi, err = sigSrv.RoomInfoByID("www")
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(hi.Members))
 }

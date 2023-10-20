@@ -4,32 +4,28 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
-var (
-	hubs           = map[string]*Hub{}
-	globalHubsLock sync.RWMutex
-)
-
 // RoomWSHandler RoomWSHandler
-func RoomWSHandler(router *gin.RouterGroup, baseURL string) {
+func (s *server) RoomWSHandler(router *gin.RouterGroup, baseURL string) {
 	router.GET(baseURL+":room_id/ws/", func(c *gin.Context) {
 		roomID := c.Param("room_id")
-		globalHubsLock.Lock()
-		defer globalHubsLock.Unlock()
-		if hubs[roomID] == nil {
+		s.hubLock.Lock()
+		defer s.hubLock.Unlock()
+		if s.hubs[roomID] == nil {
 			if roomID == "neo" && os.Getenv("DEBUG") != "" { // TODO temp hardcoded
-				hubs[roomID] = CreateHub(roomID)
+				s.hubLock.Unlock()
+				s.hubs[roomID] = s.RoomCreate(roomID)
+				s.hubLock.Lock()
 			} else {
 				c.JSON(http.StatusUnauthorized, nil)
 				return
 			}
 		}
-		hub := hubs[roomID]
+		hub := s.hubs[roomID]
 
 		upgrader := websocket.Upgrader{
 			ReadBufferSize:  8192,

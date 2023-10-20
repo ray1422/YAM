@@ -25,7 +25,8 @@ type listClientResponse struct {
 }
 
 func TestMultiClients(t *testing.T) {
-	hub := CreateHub("www")
+	s := new()
+	hub := s.RoomCreate("www")
 	c1 := hub.NewClient(nil)
 	c2 := hub.NewClient(nil)
 	assert.NotNil(t, c1, c2)
@@ -72,19 +73,20 @@ func TestMultiClients(t *testing.T) {
 }
 
 func TestWithRealConn(t *testing.T) {
+	s := new()
 	os.Setenv("DEBUG", "true")
 	roomName := "neo"
 	done := make(chan bool)
 	router := gin.Default()
 	var c1ID string
-	RoomWSHandler(router.Group("/api/room"), "/")
-	s := httptest.NewServer(router)
-	defer s.Close()
+	s.RoomWSHandler(router.Group("/api/room"), "/")
+	srv := httptest.NewServer(router)
+	defer srv.Close()
 
 	flag.Parse()
 	log.SetFlags(0)
 
-	u := url.URL{Scheme: "ws", Host: strings.TrimPrefix(s.URL, "http://"), Path: "/api/room/" + roomName + "/ws/"}
+	u := url.URL{Scheme: "ws", Host: strings.TrimPrefix(srv.URL, "http://"), Path: "/api/room/" + roomName + "/ws/"}
 	log.Printf("connecting to %s", u.String())
 	c1IDChan := make(chan string, 1)
 	c2IDChan := make(chan string, 1)
@@ -226,7 +228,7 @@ func TestWithRealConn(t *testing.T) {
 	assert.Equal(t, "leave", leaveSig.Data.Event)
 	ch := make(chan *HubInfo, 1)
 
-	hubs[roomName].RequestInfoChan <- &ch
+	s.hubs[roomName].RequestInfoChan <- &ch
 
 	info := <-ch
 	assert.Equal(t, 1, len(info.Members))

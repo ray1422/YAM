@@ -43,12 +43,12 @@ var (
 	cleanerTimeout = 30 * time.Second
 )
 
-// CreateHub CreateHub
-func CreateHub(roomID string) *Hub {
-	globalHubsLock.Lock()
-	defer globalHubsLock.Unlock()
-	if hubs[roomID] != nil {
-		return hubs[roomID]
+// RoomCreate RoomCreate
+func (s *server) RoomCreate(roomID string) *Hub {
+	s.hubLock.Lock()
+	defer s.hubLock.Unlock()
+	if s.hubs[roomID] != nil {
+		return s.hubs[roomID]
 	}
 	h := &Hub{
 		ID:              roomID,
@@ -59,8 +59,13 @@ func CreateHub(roomID string) *Hub {
 		RequestInfoChan: make(chan *chan *HubInfo, 512),
 		cleanTicker:     *time.NewTicker(cleanerTimeout),
 	}
-	hubs[roomID] = h
-	go h.Loop()
+	s.hubs[roomID] = h
+	go func() {
+		h.Loop()
+		s.hubLock.Lock()
+		delete(s.hubs, h.ID)
+		s.hubLock.Unlock()
+	}()
 	return h
 }
 
@@ -142,9 +147,6 @@ func (h *Hub) Loop() {
 				*ch <- nil
 			default:
 			}
-			globalHubsLock.Lock()
-			delete(hubs, h.ID)
-			globalHubsLock.Unlock()
 			return
 		}
 

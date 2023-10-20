@@ -8,10 +8,11 @@ import (
 )
 
 func TestListRoom(t *testing.T) {
+	room := hub{sigSrv: signaling.New()}
 	// create hubs
-	signaling.CreateHub("www")
-	signaling.CreateHub("asdf")
+	room.sigSrv.RoomCreate("www")
+	room.sigSrv.RoomCreate("asdf")
 
-	ss := hubList()
+	ss := room.roomList()
 	assert.ElementsMatch(t, []string{"www", "asdf"}, ss)
 }

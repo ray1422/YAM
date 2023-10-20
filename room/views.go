@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ray1422/YAM-api/room/signaling"
 	"github.com/ray1422/YAM-api/utils/jwt"
 	"github.com/rs/xid"
 )
@@ -14,10 +13,19 @@ type roomIDPost struct {
 	Password string `json:"password,omitempty"`
 }
 
-func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
+type view struct {
+	hubModel HubModel
+}
+
+type View interface {
+	Views(roomGroup *gin.RouterGroup, baseURL string)
+}
+
+func (r view) Views(roomGroup *gin.RouterGroup, baseURL string) {
+	r.hubModel.handleWS(roomGroup, "/")
 	roomGroup.GET(baseURL, func(c *gin.Context) {
 		// TODO authorization
-		c.JSON(http.StatusOK, hubList())
+		c.JSON(http.StatusOK, r.hubModel.roomList())
 		// TODO Pagination
 	})
 	roomGroup.POST(baseURL, func(c *gin.Context) {
@@ -27,7 +35,7 @@ func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
 		roomID, _ := c.Params.Get("room_id")
 		_ = roomID
 		// TODO verify roomID
-		info, err := hubInfo(roomID)
+		info, err := r.hubModel.roomInfo(roomID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, nil)
 			return
@@ -43,7 +51,7 @@ func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
 		// TODO AUTH
 		// TODO impl jwt pair (token & refresh)
 
-		signaling.CreateHub(roomID)
+		r.hubModel.roomCreate(roomID)
 
 		token := jwt.New(48 * time.Hour)
 		token.Payload["room_id"] = roomID
