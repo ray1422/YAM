@@ -97,7 +97,7 @@ func TestClientRegisterTimeout(t *testing.T) {
 func TestClientRegisterHubClosed(t *testing.T) {
 	h := CreateHub("asdf")
 	c := h.NewClient(newWS())
-	h.cleanTicker.Reset(0)
+	h.cleanTicker.Reset(1)
 	time.Sleep(5500 * time.Millisecond)
 	assert.NotNil(t, c.conn.WriteJSON(&map[string]string{}))
 }

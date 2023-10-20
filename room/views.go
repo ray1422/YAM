@@ -10,7 +10,7 @@ import (
 	"github.com/rs/xid"
 )
 
-type roomIDPOST struct {
+type roomIDPost struct {
 	Password string `json:"password,omitempty"`
 }
 
@@ -38,16 +38,13 @@ func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
 		roomID, _ := c.Params.Get("room_id")
 		_ = roomID
 		// TODO verify roomID
-		body := roomIDPOST{}
+		body := roomIDPost{}
 		c.BindJSON(&body)
 		// TODO AUTH
 		// TODO impl jwt pair (token & refresh)
-		signaling.GlobalHubsLock.Lock()
-		if signaling.Hubs[roomID] == nil {
-			signaling.Hubs[roomID] = signaling.CreateHub(roomID)
-		}
 
-		signaling.GlobalHubsLock.Unlock()
+		signaling.CreateHub(roomID)
+
 		token := jwt.New(48 * time.Hour)
 		token.Payload["room_id"] = roomID
 		c.JSON(http.StatusOK, map[string]interface{}{"token": token.TokenString(), "refresh": "EXAMPLE_REFRESH"})

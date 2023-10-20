@@ -28,7 +28,7 @@ type HubInfo struct {
 // Hub hub
 type Hub struct {
 	ID             string
-	Clients        map[string]*Client
+	clients        map[string]*Client
 	RegisterChan   chan *Client // must be unbuffered chan to make sure send await register
 	UnregisterChan chan *Client // must be unbuffered chan
 
@@ -45,21 +45,27 @@ var (
 
 // CreateHub CreateHub
 func CreateHub(roomID string) *Hub {
+	globalHubsLock.Lock()
+	defer globalHubsLock.Unlock()
+	if hubs[roomID] != nil {
+		return hubs[roomID]
+	}
 	h := &Hub{
 		ID:              roomID,
-		Clients:         map[string]*Client{},
+		clients:         map[string]*Client{},
 		RegisterChan:    make(chan *Client),
 		UnregisterChan:  make(chan *Client),
 		simpleChan:      make(chan *simpleData, 8192),
 		RequestInfoChan: make(chan *chan *HubInfo, 512),
 		cleanTicker:     *time.NewTicker(cleanerTimeout),
 	}
-	go h.HubLoop()
+	hubs[roomID] = h
+	go h.Loop()
 	return h
 }
 
-// HubLoop loop for hub. should be create in goroutine
-func (h *Hub) HubLoop() {
+// Loop loop for hub. should be create in goroutine
+func (h *Hub) Loop() {
 	defer func() {
 		log.Println("hub closed")
 	}()
@@ -68,7 +74,7 @@ func (h *Hub) HubLoop() {
 		case client := <-h.RegisterChan:
 			h.cleanTicker.Reset(cleanerTimeout)
 			clientsID := []string{}
-			for i := range h.Clients {
+			for i := range h.clients {
 				clientsID = append(clientsID, i)
 			}
 			clientsIDBytes, err := json.Marshal(map[string]interface{}{"clients": clientsID, "self_client_id": client.id})
@@ -83,12 +89,12 @@ func (h *Hub) HubLoop() {
 				continue
 			}
 			client.send <- clientListBytes
-			h.Clients[client.id] = client
+			h.clients[client.id] = client
 		case client := <-h.UnregisterChan:
 			client.close()
-			delete(h.Clients, client.id)
+			delete(h.clients, client.id)
 			h.cleanTicker.Reset(5 * time.Second)
-			for _, c := range h.Clients {
+			for _, c := range h.clients {
 				b, err := json.Marshal(map[string]interface{}{
 					"action": "client_event",
 					"data": map[string]string{
@@ -103,13 +109,13 @@ func (h *Hub) HubLoop() {
 				}
 			}
 		case dat := <-h.simpleChan:
-			if _, ok := h.Clients[dat.toID]; ok {
-				h.Clients[dat.toID].send <- dat.data
+			if _, ok := h.clients[dat.toID]; ok {
+				h.clients[dat.toID].send <- dat.data
 			}
 
 		case ch := <-h.RequestInfoChan:
 			ms := []Member{}
-			for idx, c := range h.Clients {
+			for idx, c := range h.clients {
 				ms = append(ms, Member{
 					ID: idx,
 					Addr: Addr{
@@ -123,12 +129,12 @@ func (h *Hub) HubLoop() {
 				Members: ms,
 			}
 		case <-h.cleanTicker.C:
-			if len(h.Clients) > 0 {
+			if len(h.clients) > 0 {
 				h.cleanTicker.Reset(cleanerTimeout)
 				continue
 			}
 			log.Println("hub " + h.ID + " close due to no clients in room")
-			for _, c := range h.Clients {
+			for _, c := range h.clients {
 				c.hubClosed <- true
 			}
 			select {
@@ -136,9 +142,9 @@ func (h *Hub) HubLoop() {
 				*ch <- nil
 			default:
 			}
-			GlobalHubsLock.Lock()
-			delete(Hubs, h.ID)
-			GlobalHubsLock.Unlock()
+			globalHubsLock.Lock()
+			delete(hubs, h.ID)
+			globalHubsLock.Unlock()
 			return
 		}
 

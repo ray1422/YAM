@@ -25,11 +25,7 @@ type listClientResponse struct {
 }
 
 func TestMultiClients(t *testing.T) {
-
-	GlobalHubsLock.Lock()
-	Hubs["www"] = CreateHub("www")
-	hub := Hubs["www"]
-	GlobalHubsLock.Unlock()
+	hub := CreateHub("www")
 	c1 := hub.NewClient(nil)
 	c2 := hub.NewClient(nil)
 	assert.NotNil(t, c1, c2)
@@ -81,7 +77,7 @@ func TestWithRealConn(t *testing.T) {
 	done := make(chan bool)
 	router := gin.Default()
 	var c1ID string
-	RoomWS(router.Group("/api/room"), "/")
+	RoomWSHandler(router.Group("/api/room"), "/")
 	s := httptest.NewServer(router)
 	defer s.Close()
 
@@ -104,7 +100,7 @@ func TestWithRealConn(t *testing.T) {
 	msg := "yet_another_data"
 	defer c2.Close()
 
-	// readloop for c1
+	// read loop for c1
 	go func(t *testing.T, msg string) {
 		token := jwt.New(48 * time.Hour)
 		token.Payload["room_id"] = roomName
@@ -230,14 +226,10 @@ func TestWithRealConn(t *testing.T) {
 	assert.Equal(t, "leave", leaveSig.Data.Event)
 	ch := make(chan *HubInfo, 1)
 
-	Hubs[roomName].RequestInfoChan <- &ch
+	hubs[roomName].RequestInfoChan <- &ch
 
-	// time.Sleep(1 * time.Second)
-	// GlobalHubsLock.RLock()
-	// h, ok := Hubs[roomName]
 	info := <-ch
 	assert.Equal(t, 1, len(info.Members))
-	// GlobalHubsLock.Unlock()
 
 }
 

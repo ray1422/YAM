@@ -8,5 +8,5 @@ import (
 // RegisterRouter RegisterRouter
 func RegisterRouter(roomGroup *gin.RouterGroup) {
 	roomViews(roomGroup, "/")
-	signaling.RoomWS(roomGroup, "/")
+	signaling.RoomWSHandler(roomGroup, "/")
 }

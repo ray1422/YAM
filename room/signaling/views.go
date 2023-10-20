@@ -11,26 +11,25 @@ import (
 )
 
 var (
-	// TODO use sync.Map
-	Hubs           = map[string]*Hub{}
-	GlobalHubsLock sync.RWMutex
+	hubs           = map[string]*Hub{}
+	globalHubsLock sync.RWMutex
 )
 
-// RoomWS RoomWS
-func RoomWS(router *gin.RouterGroup, baseURL string) {
+// RoomWSHandler RoomWSHandler
+func RoomWSHandler(router *gin.RouterGroup, baseURL string) {
 	router.GET(baseURL+":room_id/ws/", func(c *gin.Context) {
 		roomID := c.Param("room_id")
-		GlobalHubsLock.Lock()
-		defer GlobalHubsLock.Unlock()
-		if Hubs[roomID] == nil {
+		globalHubsLock.Lock()
+		defer globalHubsLock.Unlock()
+		if hubs[roomID] == nil {
 			if roomID == "neo" && os.Getenv("DEBUG") != "" { // TODO temp hardcoded
-				Hubs[roomID] = CreateHub(roomID)
+				hubs[roomID] = CreateHub(roomID)
 			} else {
 				c.JSON(http.StatusUnauthorized, nil)
 				return
 			}
 		}
-		hub := Hubs[roomID]
+		hub := hubs[roomID]
 
 		upgrader := websocket.Upgrader{
 			ReadBufferSize:  8192,
