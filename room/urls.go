@@ -5,7 +5,7 @@ import (
 )
 
 // RegisterRouter RegisterRouter
-func RegisterRouter(roomGroup *gin.RouterGroup, r HubModel) {
+func RegisterRouter(roomGroup *gin.RouterGroup, r Hub) {
 	v := view{hubModel: r}
 	v.Views(roomGroup, "/")
 }

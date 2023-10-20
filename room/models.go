@@ -8,7 +8,9 @@ import (
 type hub struct {
 	sigSrv signaling.Server
 }
-type HubModel interface {
+
+// Hub manages rooms
+type Hub interface {
 	roomList() []string
 	roomInfo(hubID string) (*signaling.HubInfo, error)
 	roomCreate(hubID string) *signaling.Hub
@@ -32,7 +34,7 @@ func (r hub) handleWS(router *gin.RouterGroup, baseURL string) {
 }
 
 // NewHub creates a new hub model
-func NewHub() HubModel {
+func NewHub() Hub {
 	return hub{sigSrv: signaling.New()}
 
 }

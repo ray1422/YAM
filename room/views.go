@@ -14,7 +14,7 @@ type roomIDPost struct {
 }
 
 type view struct {
-	hubModel HubModel
+	hubModel Hub
 }
 
 type View interface {
