@@ -7,16 +7,16 @@ import (
 )
 
 type server struct {
-	hubs    map[string]*Hub
-	hubLock sync.RWMutex
+	rooms     map[string]*Room
+	roomsLock sync.RWMutex
 }
 
-// Server is the signaling server holding all the hubs
+// Server is the signaling server holding all the rooms
 type Server interface {
 	RoomList() []string
-	RoomInfoByID(hubID string) (*HubInfo, error)
-	// RoomCreate(roomID string) *Hub
-	RoomCreate(roomID string) *Hub
+	RoomInfoByID(roomID string) (*RoomInfo, error)
+	// RoomCreate(roomID string) *Room
+	RoomCreate(roomID string) *Room
 	RoomWSHandler(router *gin.RouterGroup, baseURL string)
 }
 
@@ -25,12 +25,12 @@ var _ Server = (*server)(nil)
 // New creates a new signaling server
 func New() Server {
 	return &server{
-		hubs: map[string]*Hub{},
+		rooms: map[string]*Room{},
 	}
 }
 
 func new() *server {
 	return &server{
-		hubs: map[string]*Hub{},
+		rooms: map[string]*Room{},
 	}
 }

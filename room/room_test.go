@@ -70,7 +70,7 @@ func TestListHub(t *testing.T) {
 	assert.Nil(t, err)
 	body, err := ioutil.ReadAll(resp.Body)
 	assert.Nil(t, err)
-	info := signaling.HubInfo{}
+	info := signaling.RoomInfo{}
 	assert.Nil(t, json.Unmarshal(body, &info))
 	assert.Equal(t, roomName, info.ID)
 	assert.Equal(t, 2, len(info.Members))

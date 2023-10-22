@@ -13,19 +13,19 @@ import (
 func (s *server) RoomWSHandler(router *gin.RouterGroup, baseURL string) {
 	router.GET(baseURL+":room_id/ws/", func(c *gin.Context) {
 		roomID := c.Param("room_id")
-		s.hubLock.Lock()
-		defer s.hubLock.Unlock()
-		if s.hubs[roomID] == nil {
+		s.roomsLock.Lock()
+		defer s.roomsLock.Unlock()
+		if s.rooms[roomID] == nil {
 			if roomID == "neo" && os.Getenv("DEBUG") != "" { // TODO temp hardcoded
-				s.hubLock.Unlock()
-				s.hubs[roomID] = s.RoomCreate(roomID)
-				s.hubLock.Lock()
+				s.roomsLock.Unlock()
+				s.rooms[roomID] = s.RoomCreate(roomID)
+				s.roomsLock.Lock()
 			} else {
 				c.JSON(http.StatusUnauthorized, nil)
 				return
 			}
 		}
-		hub := s.hubs[roomID]
+		room := s.rooms[roomID]
 
 		upgrader := websocket.Upgrader{
 			ReadBufferSize:  8192,
@@ -36,7 +36,7 @@ func (s *server) RoomWSHandler(router *gin.RouterGroup, baseURL string) {
 		if err != nil {
 			log.Println(err)
 		}
-		hub.NewClient(conn)
+		room.NewClient(conn)
 	})
 
 }

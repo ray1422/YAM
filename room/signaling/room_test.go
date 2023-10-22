@@ -11,21 +11,21 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestClientJoinAfterHubClose(t *testing.T) {
+func TestClientJoinAfterRoomClose(t *testing.T) {
 	s := New()
 	oldCleanerTimeout := cleanerTimeout
 	cleanerTimeout = 100 * time.Millisecond // mock
 	t.Cleanup(func() {
 		cleanerTimeout = oldCleanerTimeout
 	})
-	hub := s.RoomCreate("www")
-	c1 := hub.NewClient(nil)
+	room := s.RoomCreate("www")
+	c1 := room.NewClient(nil)
 	time.Sleep(300 * time.Millisecond) // make it timeout
 	assert.NotNil(t, c1.registerClient([]byte(`{"token": "www"}`)))
 	time.Sleep(300 * time.Millisecond) // make it timeout
 }
 
-func TestHubInfo(t *testing.T) {
+func TestRoomInfo(t *testing.T) {
 	sigSrv := New()
 	s := httptest.NewServer(http.HandlerFunc(echo))
 	defer s.Close()

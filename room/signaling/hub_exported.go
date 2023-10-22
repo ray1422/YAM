@@ -2,30 +2,30 @@ package signaling
 
 import "errors"
 
-// RoomList list all hubs
+// RoomList list all rooms
 func (s *server) RoomList() []string {
-	s.hubLock.RLock()
-	defer s.hubLock.RUnlock()
-	hubsID := []string{}
-	for c := range s.hubs {
-		hubsID = append(hubsID, c)
+	s.roomsLock.RLock()
+	defer s.roomsLock.RUnlock()
+	roomsID := []string{}
+	for c := range s.rooms {
+		roomsID = append(roomsID, c)
 	}
-	return hubsID
+	return roomsID
 }
 
-// RoomInfoByID returns HubInfo
-func (s *server) RoomInfoByID(hubID string) (*HubInfo, error) {
-	s.hubLock.RLock()
-	defer s.hubLock.RUnlock()
-	h, ok := s.hubs[hubID]
+// RoomInfoByID returns RoomInfo by roomID
+func (s *server) RoomInfoByID(roomID string) (*RoomInfo, error) {
+	s.roomsLock.RLock()
+	defer s.roomsLock.RUnlock()
+	r, ok := s.rooms[roomID]
 	if !ok {
-		return nil, errors.New("hub not found")
+		return nil, errors.New("room not found")
 	}
-	datChan := make(chan *HubInfo, 1)
-	h.RequestInfoChan <- &datChan
-	hubDat := <-datChan
-	if hubDat == nil {
-		return nil, errors.New("hub has been closed")
+	datChan := make(chan *RoomInfo, 1)
+	r.RequestInfoChan <- &datChan
+	roomDat := <-datChan
+	if roomDat == nil {
+		return nil, errors.New("room has been closed")
 	}
-	return hubDat, nil
+	return roomDat, nil
 }

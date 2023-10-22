@@ -12,8 +12,8 @@ type hub struct {
 // Hub manages rooms
 type Hub interface {
 	roomList() []string
-	roomInfo(hubID string) (*signaling.HubInfo, error)
-	roomCreate(hubID string) *signaling.Hub
+	roomInfo(hubID string) (*signaling.RoomInfo, error)
+	roomCreate(hubID string) *signaling.Room
 	handleWS(router *gin.RouterGroup, baseURL string)
 }
 
@@ -21,11 +21,11 @@ func (r hub) roomList() []string {
 	return r.sigSrv.RoomList()
 }
 
-func (r hub) roomInfo(hubID string) (*signaling.HubInfo, error) {
+func (r hub) roomInfo(hubID string) (*signaling.RoomInfo, error) {
 	return r.sigSrv.RoomInfoByID(hubID)
 }
 
-func (r hub) roomCreate(hubID string) *signaling.Hub {
+func (r hub) roomCreate(hubID string) *signaling.Room {
 	return r.sigSrv.RoomCreate(hubID)
 }
 

@@ -26,9 +26,9 @@ type listClientResponse struct {
 
 func TestMultiClients(t *testing.T) {
 	s := new()
-	hub := s.RoomCreate("www")
-	c1 := hub.NewClient(nil)
-	c2 := hub.NewClient(nil)
+	room := s.RoomCreate("www")
+	c1 := room.NewClient(nil)
+	c2 := room.NewClient(nil)
 	assert.NotNil(t, c1, c2)
 	token := jwt.New(48 * time.Hour)
 	token.Payload["room_id"] = "www"
@@ -56,7 +56,7 @@ func TestMultiClients(t *testing.T) {
 	dat, err := c1.provideData([]byte(`{"remote_id":"`+c2.id+`", "data": "yet_another_data"}`), Offer)
 	assert.Equal(t, c2.id, dat.toID)
 	assert.Nil(t, err)
-	c1.hub.simpleChan <- dat
+	c1.room.simpleChan <- dat
 	receiveBytes := <-c2.send
 	aw = actionWrapper{}
 	err = json.Unmarshal(receiveBytes, &aw)
@@ -213,7 +213,7 @@ func TestWithRealConn(t *testing.T) {
 
 	<-done
 	<-done
-	// TODO get information from hub.
+	// TODO get information from room.
 	c1.Close()
 	leaveSig := struct {
 		Action string `json:"action"`
@@ -226,9 +226,9 @@ func TestWithRealConn(t *testing.T) {
 	assert.Equal(t, "client_event", leaveSig.Action)
 	assert.NotEmpty(t, leaveSig.Data.RemoteID)
 	assert.Equal(t, "leave", leaveSig.Data.Event)
-	ch := make(chan *HubInfo, 1)
+	ch := make(chan *RoomInfo, 1)
 
-	s.hubs[roomName].RequestInfoChan <- &ch
+	s.rooms[roomName].RequestInfoChan <- &ch
 
 	info := <-ch
 	assert.Equal(t, 1, len(info.Members))
