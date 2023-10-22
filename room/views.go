@@ -5,19 +5,28 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ray1422/YAM-api/room/signaling"
 	"github.com/ray1422/YAM-api/utils/jwt"
 	"github.com/rs/xid"
 )
 
-type roomIDPOST struct {
+type roomIDPost struct {
 	Password string `json:"password,omitempty"`
 }
 
-func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
+type view struct {
+	hub Hub
+}
+
+// View provide the interface that allows registering views to the router
+type View interface {
+	Views(roomGroup *gin.RouterGroup, baseURL string)
+}
+
+func (r view) Views(roomGroup *gin.RouterGroup, baseURL string) {
+	r.hub.handleWS(roomGroup, "/")
 	roomGroup.GET(baseURL, func(c *gin.Context) {
 		// TODO authorization
-		c.JSON(http.StatusOK, hubList())
+		c.JSON(http.StatusOK, r.hub.roomList())
 		// TODO Pagination
 	})
 	roomGroup.POST(baseURL, func(c *gin.Context) {
@@ -27,7 +36,7 @@ func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
 		roomID, _ := c.Params.Get("room_id")
 		_ = roomID
 		// TODO verify roomID
-		info, err := hubInfo(roomID)
+		info, err := r.hub.roomInfo(roomID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, nil)
 			return
@@ -38,16 +47,13 @@ func roomViews(roomGroup *gin.RouterGroup, baseURL string) {
 		roomID, _ := c.Params.Get("room_id")
 		_ = roomID
 		// TODO verify roomID
-		body := roomIDPOST{}
+		body := roomIDPost{}
 		c.BindJSON(&body)
 		// TODO AUTH
 		// TODO impl jwt pair (token & refresh)
-		signaling.GlobalHubsLock.Lock()
-		if signaling.Hubs[roomID] == nil {
-			signaling.Hubs[roomID] = signaling.CreateHub(roomID)
-		}
 
-		signaling.GlobalHubsLock.Unlock()
+		r.hub.roomCreate(roomID)
+
 		token := jwt.New(48 * time.Hour)
 		token.Payload["room_id"] = roomID
 		c.JSON(http.StatusOK, map[string]interface{}{"token": token.TokenString(), "refresh": "EXAMPLE_REFRESH"})

@@ -21,7 +21,9 @@ func TestParseAction(t *testing.T) {
 
 }
 func TestClientProvideDat(t *testing.T) {
-	client := CreateHub("www").NewClient(nil)
+	s := new()
+
+	client := s.RoomCreate("www").NewClient(nil)
 	fmt.Println("client ID:", client.id)
 	{
 		_, err := client.provideData([]byte(`{"remote_id":"www"}`), Offer)
@@ -85,19 +87,21 @@ func TestClientProvideDat(t *testing.T) {
 			assert.Equal(t, client.id, obj.RemoteID)
 		}
 	}
-	client.hub.UnregisterChan <- client
+	client.room.UnregisterChan <- client
 }
 
 func TestClientRegisterTimeout(t *testing.T) {
-	h := CreateHub("asdf")
+	s := new()
+	h := s.RoomCreate("asdf")
 	c := h.NewClient(newWS())
 	time.Sleep(5500 * time.Millisecond)
 	assert.NotNil(t, c.conn.WriteJSON(&map[string]string{}))
 }
-func TestClientRegisterHubClosed(t *testing.T) {
-	h := CreateHub("asdf")
+func TestClientRegisterRoomClosed(t *testing.T) {
+	s := new()
+	h := s.RoomCreate("asdf")
 	c := h.NewClient(newWS())
-	h.cleanTicker.Reset(0)
+	h.cleanTicker.Reset(1)
 	time.Sleep(5500 * time.Millisecond)
 	assert.NotNil(t, c.conn.WriteJSON(&map[string]string{}))
 }

@@ -20,21 +20,21 @@ type Member struct {
 	ID   string `json:"id"`
 }
 
-type HubInfo struct {
+type RoomInfo struct {
 	ID      string
 	Members []Member
 }
 
-// Hub hub
-type Hub struct {
+// Room room
+type Room struct {
 	ID             string
-	Clients        map[string]*Client
+	clients        map[string]*Client
 	RegisterChan   chan *Client // must be unbuffered chan to make sure send await register
 	UnregisterChan chan *Client // must be unbuffered chan
 
 	simpleChan chan *simpleData
 
-	RequestInfoChan chan *chan *HubInfo
+	RequestInfoChan chan *chan *RoomInfo
 
 	cleanTicker time.Ticker
 }
@@ -43,32 +43,43 @@ var (
 	cleanerTimeout = 30 * time.Second
 )
 
-// CreateHub CreateHub
-func CreateHub(roomID string) *Hub {
-	h := &Hub{
+// RoomCreate RoomCreate
+func (s *server) RoomCreate(roomID string) *Room {
+	s.roomsLock.Lock()
+	defer s.roomsLock.Unlock()
+	if s.rooms[roomID] != nil {
+		return s.rooms[roomID]
+	}
+	h := &Room{
 		ID:              roomID,
-		Clients:         map[string]*Client{},
+		clients:         map[string]*Client{},
 		RegisterChan:    make(chan *Client),
 		UnregisterChan:  make(chan *Client),
 		simpleChan:      make(chan *simpleData, 8192),
-		RequestInfoChan: make(chan *chan *HubInfo, 512),
+		RequestInfoChan: make(chan *chan *RoomInfo, 512),
 		cleanTicker:     *time.NewTicker(cleanerTimeout),
 	}
-	go h.HubLoop()
+	s.rooms[roomID] = h
+	go func() {
+		h.Loop()
+		s.roomsLock.Lock()
+		delete(s.rooms, h.ID)
+		s.roomsLock.Unlock()
+	}()
 	return h
 }
 
-// HubLoop loop for hub. should be create in goroutine
-func (h *Hub) HubLoop() {
+// Loop loop for room. should be create in goroutine
+func (r *Room) Loop() {
 	defer func() {
-		log.Println("hub closed")
+		log.Println("room closed")
 	}()
 	for {
 		select {
-		case client := <-h.RegisterChan:
-			h.cleanTicker.Reset(cleanerTimeout)
+		case client := <-r.RegisterChan:
+			r.cleanTicker.Reset(cleanerTimeout)
 			clientsID := []string{}
-			for i := range h.Clients {
+			for i := range r.clients {
 				clientsID = append(clientsID, i)
 			}
 			clientsIDBytes, err := json.Marshal(map[string]interface{}{"clients": clientsID, "self_client_id": client.id})
@@ -83,12 +94,12 @@ func (h *Hub) HubLoop() {
 				continue
 			}
 			client.send <- clientListBytes
-			h.Clients[client.id] = client
-		case client := <-h.UnregisterChan:
+			r.clients[client.id] = client
+		case client := <-r.UnregisterChan:
 			client.close()
-			delete(h.Clients, client.id)
-			h.cleanTicker.Reset(5 * time.Second)
-			for _, c := range h.Clients {
+			delete(r.clients, client.id)
+			r.cleanTicker.Reset(5 * time.Second)
+			for _, c := range r.clients {
 				b, err := json.Marshal(map[string]interface{}{
 					"action": "client_event",
 					"data": map[string]string{
@@ -102,14 +113,14 @@ func (h *Hub) HubLoop() {
 					log.Println(err)
 				}
 			}
-		case dat := <-h.simpleChan:
-			if _, ok := h.Clients[dat.toID]; ok {
-				h.Clients[dat.toID].send <- dat.data
+		case dat := <-r.simpleChan:
+			if _, ok := r.clients[dat.toID]; ok {
+				r.clients[dat.toID].send <- dat.data
 			}
 
-		case ch := <-h.RequestInfoChan:
+		case ch := <-r.RequestInfoChan:
 			ms := []Member{}
-			for idx, c := range h.Clients {
+			for idx, c := range r.clients {
 				ms = append(ms, Member{
 					ID: idx,
 					Addr: Addr{
@@ -118,27 +129,24 @@ func (h *Hub) HubLoop() {
 					},
 				})
 			}
-			*ch <- &HubInfo{
-				ID:      h.ID,
+			*ch <- &RoomInfo{
+				ID:      r.ID,
 				Members: ms,
 			}
-		case <-h.cleanTicker.C:
-			if len(h.Clients) > 0 {
-				h.cleanTicker.Reset(cleanerTimeout)
+		case <-r.cleanTicker.C:
+			if len(r.clients) > 0 {
+				r.cleanTicker.Reset(cleanerTimeout)
 				continue
 			}
-			log.Println("hub " + h.ID + " close due to no clients in room")
-			for _, c := range h.Clients {
-				c.hubClosed <- true
+			log.Println("room " + r.ID + " close due to no clients in room")
+			for _, c := range r.clients {
+				c.roomClosed <- true
 			}
 			select {
-			case ch := <-h.RequestInfoChan:
+			case ch := <-r.RequestInfoChan:
 				*ch <- nil
 			default:
 			}
-			GlobalHubsLock.Lock()
-			delete(Hubs, h.ID)
-			GlobalHubsLock.Unlock()
 			return
 		}
 

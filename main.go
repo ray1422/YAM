@@ -21,6 +21,6 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 	apiRouter := router.Group("/api")
-	room.RegisterRouter(apiRouter.Group("/room"))
+	room.RegisterRouter(apiRouter.Group("/room"), room.NewHub())
 	router.Run()
 }

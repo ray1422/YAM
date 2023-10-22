@@ -1,33 +1,40 @@
 package room
 
 import (
-	"errors"
-
+	"github.com/gin-gonic/gin"
 	"github.com/ray1422/YAM-api/room/signaling"
 )
 
-func hubList() []string {
-	signaling.GlobalHubsLock.RLock()
-	hubsID := []string{}
-	for c := range signaling.Hubs {
-		hubsID = append(hubsID, c)
-	}
-	signaling.GlobalHubsLock.RUnlock()
-	return hubsID
+type hub struct {
+	sigSrv signaling.Server
 }
 
-func hubInfo(hubID string) (*signaling.HubInfo, error) {
-	signaling.GlobalHubsLock.RLock()
-	defer signaling.GlobalHubsLock.RUnlock()
-	h, ok := signaling.Hubs[hubID]
-	if !ok {
-		return nil, errors.New("hub not found")
-	}
-	datChan := make(chan *signaling.HubInfo, 1)
-	h.RequestInfoChan <- &datChan
-	hubDat := <-datChan
-	if hubDat == nil {
-		return nil, errors.New("hub has been closed")
-	}
-	return hubDat, nil
+// Hub manages rooms
+type Hub interface {
+	roomList() []string
+	roomInfo(hubID string) (*signaling.RoomInfo, error)
+	roomCreate(hubID string) *signaling.Room
+	handleWS(router *gin.RouterGroup, baseURL string)
+}
+
+func (r hub) roomList() []string {
+	return r.sigSrv.RoomList()
+}
+
+func (r hub) roomInfo(hubID string) (*signaling.RoomInfo, error) {
+	return r.sigSrv.RoomInfoByID(hubID)
+}
+
+func (r hub) roomCreate(hubID string) *signaling.Room {
+	return r.sigSrv.RoomCreate(hubID)
+}
+
+func (r hub) handleWS(router *gin.RouterGroup, baseURL string) {
+	r.sigSrv.RoomWSHandler(router, baseURL)
+}
+
+// NewHub creates a new hub model
+func NewHub() Hub {
+	return hub{sigSrv: signaling.New()}
+
 }

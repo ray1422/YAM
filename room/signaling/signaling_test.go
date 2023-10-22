@@ -25,13 +25,10 @@ type listClientResponse struct {
 }
 
 func TestMultiClients(t *testing.T) {
-
-	GlobalHubsLock.Lock()
-	Hubs["www"] = CreateHub("www")
-	hub := Hubs["www"]
-	GlobalHubsLock.Unlock()
-	c1 := hub.NewClient(nil)
-	c2 := hub.NewClient(nil)
+	s := new()
+	room := s.RoomCreate("www")
+	c1 := room.NewClient(nil)
+	c2 := room.NewClient(nil)
 	assert.NotNil(t, c1, c2)
 	token := jwt.New(48 * time.Hour)
 	token.Payload["room_id"] = "www"
@@ -59,7 +56,7 @@ func TestMultiClients(t *testing.T) {
 	dat, err := c1.provideData([]byte(`{"remote_id":"`+c2.id+`", "data": "yet_another_data"}`), Offer)
 	assert.Equal(t, c2.id, dat.toID)
 	assert.Nil(t, err)
-	c1.hub.simpleChan <- dat
+	c1.room.simpleChan <- dat
 	receiveBytes := <-c2.send
 	aw = actionWrapper{}
 	err = json.Unmarshal(receiveBytes, &aw)
@@ -76,19 +73,20 @@ func TestMultiClients(t *testing.T) {
 }
 
 func TestWithRealConn(t *testing.T) {
+	s := new()
 	os.Setenv("DEBUG", "true")
 	roomName := "neo"
 	done := make(chan bool)
 	router := gin.Default()
 	var c1ID string
-	RoomWS(router.Group("/api/room"), "/")
-	s := httptest.NewServer(router)
-	defer s.Close()
+	s.RoomWSHandler(router.Group("/api/room"), "/")
+	srv := httptest.NewServer(router)
+	defer srv.Close()
 
 	flag.Parse()
 	log.SetFlags(0)
 
-	u := url.URL{Scheme: "ws", Host: strings.TrimPrefix(s.URL, "http://"), Path: "/api/room/" + roomName + "/ws/"}
+	u := url.URL{Scheme: "ws", Host: strings.TrimPrefix(srv.URL, "http://"), Path: "/api/room/" + roomName + "/ws/"}
 	log.Printf("connecting to %s", u.String())
 	c1IDChan := make(chan string, 1)
 	c2IDChan := make(chan string, 1)
@@ -104,7 +102,7 @@ func TestWithRealConn(t *testing.T) {
 	msg := "yet_another_data"
 	defer c2.Close()
 
-	// readloop for c1
+	// read loop for c1
 	go func(t *testing.T, msg string) {
 		token := jwt.New(48 * time.Hour)
 		token.Payload["room_id"] = roomName
@@ -215,7 +213,7 @@ func TestWithRealConn(t *testing.T) {
 
 	<-done
 	<-done
-	// TODO get information from hub.
+	// TODO get information from room.
 	c1.Close()
 	leaveSig := struct {
 		Action string `json:"action"`
@@ -228,16 +226,12 @@ func TestWithRealConn(t *testing.T) {
 	assert.Equal(t, "client_event", leaveSig.Action)
 	assert.NotEmpty(t, leaveSig.Data.RemoteID)
 	assert.Equal(t, "leave", leaveSig.Data.Event)
-	ch := make(chan *HubInfo, 1)
+	ch := make(chan *RoomInfo, 1)
 
-	Hubs[roomName].RequestInfoChan <- &ch
+	s.rooms[roomName].RequestInfoChan <- &ch
 
-	// time.Sleep(1 * time.Second)
-	// GlobalHubsLock.RLock()
-	// h, ok := Hubs[roomName]
 	info := <-ch
 	assert.Equal(t, 1, len(info.Members))
-	// GlobalHubsLock.Unlock()
 
 }
 

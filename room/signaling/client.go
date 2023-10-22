@@ -37,23 +37,23 @@ const (
 
 // Client client for each ws connection, handling read and write loop
 type Client struct {
-	hub       *Hub
-	id        string
-	conn      *websocket.Conn
-	send      chan []byte
-	hubClosed chan bool
-	register  chan bool
+	room       *Room
+	id         string
+	conn       *websocket.Conn
+	send       chan []byte
+	roomClosed chan bool
+	register   chan bool
 }
 
 // NewClient new client
-func (h *Hub) NewClient(conn *websocket.Conn) *Client {
+func (h *Room) NewClient(conn *websocket.Conn) *Client {
 	client := &Client{
-		hub:       h,
-		id:        xid.New().String(),
-		conn:      conn,
-		send:      make(chan []byte, 256),
-		hubClosed: make(chan bool, 1),
-		register:  make(chan bool, 1),
+		room:       h,
+		id:         xid.New().String(),
+		conn:       conn,
+		send:       make(chan []byte, 256),
+		roomClosed: make(chan bool, 1),
+		register:   make(chan bool, 1),
 	}
 
 	if conn != nil {
@@ -64,8 +64,8 @@ func (h *Hub) NewClient(conn *websocket.Conn) *Client {
 			select {
 			case <-t.C:
 				select {
-				case client.hub.UnregisterChan <- client:
-				case <-client.hubClosed:
+				case client.room.UnregisterChan <- client:
+				case <-client.roomClosed:
 				default:
 					client.close()
 				}
@@ -94,8 +94,8 @@ func (c *Client) close() {
 func (c *Client) readLoop() {
 	defer func() {
 		select {
-		case c.hub.UnregisterChan <- c:
-		case <-c.hubClosed:
+		case c.room.UnregisterChan <- c:
+		case <-c.roomClosed:
 		}
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -119,16 +119,16 @@ func (c *Client) readLoop() {
 
 		case "provide_offer":
 			if dat, err := c.provideData(data, Offer); err == nil {
-				c.hub.simpleChan <- dat
+				c.room.simpleChan <- dat
 			}
 
 		case "provide_answer":
 			if dat, err := c.provideData(data, Answer); err == nil {
-				c.hub.simpleChan <- dat
+				c.room.simpleChan <- dat
 			}
 		case "provide_candidate":
 			if dat, err := c.provideData(data, Candidate); err == nil {
-				c.hub.simpleChan <- dat
+				c.room.simpleChan <- dat
 			}
 		}
 	}
@@ -138,8 +138,8 @@ func (c *Client) writeLoop() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		select {
-		case c.hub.UnregisterChan <- c:
-		case <-c.hubClosed:
+		case c.room.UnregisterChan <- c:
+		case <-c.roomClosed:
 		}
 
 	}()
@@ -194,7 +194,7 @@ func (c *Client) registerClient(data json.RawMessage) (e error) {
 	if err != nil {
 		return err
 	}
-	if c.hub.ID == "neo" && os.Getenv("DEBUG") != "" {
+	if c.room.ID == "neo" && os.Getenv("DEBUG") != "" {
 		goto AUTH_END
 	}
 	{
@@ -208,7 +208,7 @@ func (c *Client) registerClient(data json.RawMessage) (e error) {
 			log.Println("invalid token:", token)
 			return errors.New("invalid token")
 		}
-		if v, ok := jwt.Payload["room_id"]; ok && v == c.hub.ID {
+		if v, ok := jwt.Payload["room_id"]; ok && v == c.room.ID {
 
 		} else {
 			return errors.New("invalid token")
@@ -219,7 +219,7 @@ AUTH_END:
 	timer := time.NewTimer(cleanerTimeout)
 
 	select {
-	case c.hub.RegisterChan <- c: // then hub will send list_client action to the client
+	case c.room.RegisterChan <- c: // then room will send list_client action to the client
 	case <-timer.C:
 		return errors.New("register timeout")
 	}
